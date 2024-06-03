@@ -774,7 +774,7 @@ def get_sessao_plenaria(sessao, casa, user):
             "materia_observacao": materia.observacao,
             "ordem_observacao": html.unescape(votacao.observacao),
             "nom_autor": '',
-            "situacao": materia_em_tramitacao.tramitacao.status if materia_em_tramitacao else _("Não informada")
+            "situacao": materia_em_tramitacao.tramitacao.texto if materia_em_tramitacao else _("")
         })
 
         autoria = materia.autoria_set.all()
