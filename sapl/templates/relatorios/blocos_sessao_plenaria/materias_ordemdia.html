@@ -5,29 +5,29 @@
 <table class="grayTable" style="height: 145px;" width="443">
     <thead>
         <tr>
-            <th>Matéria</th>
-            <th>Ementa</th>
-            <th>Resultado da Votação</th>
+            <th style="width:15%">Matéria</th>
+            <th style="width:60%">Ementa</th>
+            <th style="width:25%">Status da Matéria</th>
         </tr>
     </thead>
     <tbody>
 {% endif %}
     <tr>
-        <td>
+        <td style="vertical-align:middle;">
             <dl>
                 <dt><b>{{materia.num_ordem}} -</b> {{materia.id_materia}}</dt>
                 <dt style="text-align: left;"><b>Quorum:</b> {{materia.des_turno}}</dt>
                 <dt style="text-align: left;"><b>{{materia.num_autores}}: </b>{{materia.nom_autor}}</dt>
             </dl>
         </td>
-        <td style="width:60%">
+        <td style="width:60%; vertical-align:middle;">
             <div style="margin:10px">
                 {{materia.txt_ementa}}
                 {% if materia.ordem_observacao %}<br><br>Obs.: {{materia.ordem_observacao}} {% endif %}
             </div>
         </td>
-        <td style="text-align: center;">
-            &nbsp;<b>{{materia.nom_resultado}}</b>
+        <td style="text-align: center; vertical-align:middle;">
+            &nbsp;{{materia.situacao}}
             <br><br>{{materia.votacao_observacao}}
         </td>
     </tr>
