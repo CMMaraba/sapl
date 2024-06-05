@@ -5,15 +5,23 @@
 {% load common_tags %}
 {% block detail_content %}
 <style xmlns:max-width="http://www.w3.org/1999/xhtml">
-		table {
-			width: 100%;
+  @import url('https://fonts.googleapis.com/css2?family=ubuntu&display=swap');
+		table {     font-family: Ubuntu, Arial;
+			width: 80%;
+			border-collapse: collapse;
+			border: 1px solid black;
+line-height: 20px;
+text-align: left;
+margin: 0 auto;
 		}
 		table, th, td {
 			border: 1px solid black;
-			border-collapse: borda-prot;
+			line-height:20px;
+			text-align:left;
 		}
 		th, td {
-			padding: 5px;
+			padding: 0.5rem;
+			padding-left:1rem;
 		}
 		.row {
 			display:flex;
@@ -23,15 +31,42 @@
 		.col-2 {
 			flex-grow: 2;
 		}
+
+		tr{
+		line-height: 20px;
+border: none;
+		}
+
+		.labels{
+			font-size:1rem;
+		}
+
+		.ementa{
+			vertical-align:top;
+			height:150px;
+		}
+
+		.assinatura{
+			vertical-align:top;
+			height:80px;
+		}
+
+		.assinatura td{
+			vertical-align:bottom;
+		}
 		@media print {
 			table {
 				width: 100%;
 			}
+
+		.labels{
+			font-size:0.8rem;
+		}
 			.hide-print {
 					display :  none;
 			}
 			.downsize {
-				font-size: 12px;
+				font-size: 11px;
 			}
 		}
 		@page {
@@ -54,6 +89,7 @@
 								alt="Logotipo"
 								class="img-responsive visible-lg-inline-block vcenter">
 					</div>
+
 					<div class="col-2">
 						{% if nome %}
 							<b>{{ nome }} - {{ municipio }} - {{ uf }}</b>
@@ -77,7 +113,7 @@
 		<tr> <td colspan="2" align="center"><b>COMPROVANTE DE PROTOCOLO</b> - Autenticação: {{ autenticacao }}</td></tr>
 
 		<tr>
-			
+
 		</tr>
 
 		<tr>
@@ -140,6 +176,11 @@
 		<tr>
 			<th>Emitido por</th>
 			<td>{{ request.user.username }}</td>
+		</tr>
+        		</tr>
+			<tr class="assinatura">
+			<th class="labels" class="downsize">Recebido por</th>
+			<td></td>
 		</tr>
 	</table>
 {% endblock detail_content %}
