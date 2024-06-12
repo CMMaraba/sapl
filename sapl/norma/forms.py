@@ -47,7 +47,7 @@ class AssuntoNormaFilterSet(django_filters.FilterSet):
         fields = ["assunto"]
 
     def multifield_filter(self, queryset, name, value):
-        return queryset.filter(Q(assunto__icontains=value) | Q(descricao__icontains=value))
+        return queryset.filter(Q(assunto__unaccent__icontains=value) | Q(descricao__unaccent__icontains=value))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -129,13 +129,22 @@ class NormaFilterSet(django_filters.FilterSet):
                      form_actions(label='Pesquisar'))
         )
 
+
     def filter_ementa(self, queryset, name, value):
-        return queryset.annotate(search=SearchVector('ementa',
-                                                     config='portuguese')).filter(search=value)
+        texto = value.split()
+        q = Q()
+        for t in texto:
+            q &= Q(ementa__unaccent__icontains=t)
+
+        return queryset.filter(q)
 
     def filter_indexacao(self, queryset, name, value):
-        return queryset.annotate(search=SearchVector('indexacao',
-                                                     config='portuguese')).filter(search=value)
+        texto = value.split()
+        q = Q()
+        for t in texto:
+            q &= Q(indexacao__unaccent__icontains=t)
+
+        return queryset.filter(q)
 
     def filter_autoria(self, queryset, name, value):
         return queryset.filter(**{
