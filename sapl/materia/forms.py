@@ -1045,7 +1045,7 @@ class MateriaLegislativaFilterSet(django_filters.FilterSet):
         texto = value.split()
         q = Q()
         for t in texto:
-            q &= Q(ementa__icontains=t)
+            q &= Q(ementa__unaccent__icontains=t)
 
         return queryset.filter(q)
 
