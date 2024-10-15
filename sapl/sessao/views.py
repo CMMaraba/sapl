@@ -1973,7 +1973,7 @@ def get_conteudo_multimidia(sessao_plenaria):
 
 def get_mesa_diretora(sessao_plenaria):
     mesa = IntegranteMesa.objects.filter(
-        sessao_plenaria=sessao_plenaria).order_by('cargo_id')
+        sessao_plenaria=sessao_plenaria).order_by('cargo__id_ordenacao', 'cargo_id')
     integrantes = [{'parlamentar': m.parlamentar,
                     'cargo': m.cargo} for m in mesa]
     return {'mesa': integrantes}
