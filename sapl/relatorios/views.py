@@ -548,7 +548,7 @@ def get_sessao_plenaria(sessao, casa, user):
     lst_mesa = []
     for composicao in IntegranteMesa.objects.select_related('parlamentar', 'cargo') \
             .filter(sessao_plenaria=sessao) \
-            .order_by('cargo_id'):
+            .order_by('cargo__id_ordenacao', 'cargo_id'):
         partido_sigla = Filiacao.objects.filter(
             parlamentar=composicao.parlamentar).first()
         sigla = '' if not partido_sigla else partido_sigla.partido.sigla
