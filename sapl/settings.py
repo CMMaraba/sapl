@@ -17,7 +17,7 @@ import logging
 import socket
 import sys
 
-from decouple import config
+from decouple import config, Csv
 from dj_database_url import parse as db_url
 from easy_thumbnails.conf import Settings as thumbnail_settings
 from unipath import Path
@@ -36,7 +36,7 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*', cast=Csv())
 
 LOGIN_REDIRECT_URL = '/'
 LOGIN_URL = '/login/?next='
@@ -246,6 +246,7 @@ THUMBNAIL_SOURCE_GENERATORS = (
 AUTH_USER_MODEL = 'auth.User'
 
 X_FRAME_OPTIONS = 'ALLOWALL'
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 EMAIL_HOST = config('EMAIL_HOST', default='localhost')
 EMAIL_PORT = config('EMAIL_PORT', cast=int, default=587)
