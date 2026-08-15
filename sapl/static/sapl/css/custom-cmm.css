@@ -1,0 +1,16 @@
+/* Customizações visuais da CMM — sobrepõe o bundle do webpack.
+   Mantido fora do bundle de propósito: sobrevive a upgrades do SAPL. */
+/* links em marrom institucional, em negrito (upstream: #02baf2, sem negrito) */
+
+a {
+  color: #6a5d54;
+  font-weight: bold;
+}
+
+.masthead {
+  text-align: center;
+}
+
+.masthead .navbar-brand img.img-responsive {
+  height: 64px;
+}

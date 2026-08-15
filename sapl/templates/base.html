@@ -29,6 +29,7 @@
       {% block webpack_loader_css %}
         {% render_chunk_vendors 'css' %}
         {% render_bundle  'global' 'css' %}
+        <link rel="stylesheet" href="{% static 'sapl/css/custom-cmm.css' %}">
       {% endblock webpack_loader_css %}
 
       {% block webpack_loader_chunks_css %}
