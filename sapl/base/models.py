@@ -56,7 +56,7 @@ class CasaLegislativa(models.Model):
     nome = models.CharField(max_length=100, verbose_name=_('Nome'))
     sigla = models.CharField(max_length=100, verbose_name=_('Sigla'))
     endereco = models.CharField(max_length=100, verbose_name=_('Endereço'))
-    cep = models.CharField(max_length=100, verbose_name=_('CEP'))
+    cep = models.CharField(max_length=100,  blank=True, verbose_name=_('CEP'))
     municipio = models.CharField(max_length=50, verbose_name=_('Município'))
     uf = models.CharField(max_length=2,
                           choices=LISTA_DE_UFS,
@@ -73,8 +73,10 @@ class CasaLegislativa(models.Model):
         max_length=100, blank=True, verbose_name=_('HomePage'))
     email = models.EmailField(
         max_length=100, blank=True, verbose_name=_('E-mail'))
+    # Campo editado via editor de texto rico (TinyMCE), portanto o valor
+    # armazenado é HTML. Não deve ter max_length: as tags consomem o limite
+    # e impedem o salvamento de textos curtos.
     informacao_geral = models.TextField(
-        max_length=100,
         blank=True,
         verbose_name=_('Informação Geral'))
 

@@ -42,7 +42,7 @@ from sapl.utils import (autor_label, autor_modal, timing,
                         models_with_gr_for_model, qs_override_django_filter,
                         SEPARADOR_HASH_PROPOSICAO,
                         validar_arquivo, YES_NO_CHOICES,
-                        GoogleRecapthaMixin)
+                        GoogleRecapthaMixin, get_client_ip)
 
 from .models import (AcompanhamentoMateria, Anexada, Autoria,
                      DespachoInicial, DocumentoAcessorio, Numeracao,
@@ -1039,6 +1039,7 @@ class MateriaLegislativaFilterSet(django_filters.FilterSet):
                   'ano_origem_externa',
                   'data_origem_externa',
                   'local_origem_externa',
+                  'regime_tramitacao',
                   ]
 
     def filter_ementa(self, queryset, name, value):
@@ -1099,7 +1100,7 @@ class MateriaLegislativaFilterSet(django_filters.FilterSet):
              ('tramitacao__status', 6),
              ])
         row9 = to_row(
-            [('materiaassunto__assunto', 6), ('indexacao', 6)])
+            [('materiaassunto__assunto', 4), ('indexacao', 4), ('regime_tramitacao', 4)])
 
         row8 = to_row(
             [
@@ -1715,7 +1716,7 @@ class TramitacaoEmLoteForm(ModelForm):
             ('texto', 12)
         ])
 
-        documentos_checkbox_HTML = '''
+        documentos_checkbox_HTML = r'''
             <br\><br\><br\>
             <fieldset>
                 <legend style="font-size: 24px;">Selecione as matérias para tramitação:</legend>
@@ -1943,10 +1944,6 @@ class ProposicaoForm(FileFieldCheckMixin, forms.ModelForm):
         fields = [
             to_column((Fieldset(
                 TipoProposicao._meta.verbose_name, Field('tipo')), 12)),
-            to_column(
-                (Alert('teste',
-                       css_class="ementa_materia hidden alert-info",
-                       dismiss=False), 12)),
             to_column(('descricao', 12)),
             to_column(('observacao', 12)),
 
@@ -2457,47 +2454,12 @@ class ConfirmarProposicaoForm(ProposicaoForm):
         if self.instance.tipo.content_type.model_class(
         ) == TipoMateriaLegislativa:
 
-            numeracao = None
-            try:
-                self.logger.debug(
-                    "Tentando obter modelo de sequência de numeração.")
-                numeracao = BaseAppConfig.objects.last(
-                ).sequencia_numeracao_protocolo
-            except AttributeError as e:
-                self.logger.error("Erro ao obter modelo. " + str(e))
-                pass
-
             tipo = self.instance.tipo.tipo_conteudo_related
-            if tipo.sequencia_numeracao:
-                numeracao = tipo.sequencia_numeracao
-            ano = timezone.now().year
-            if numeracao == 'A':
-                numero = MateriaLegislativa.objects.filter(
-                    ano=ano, tipo=tipo).aggregate(Max('numero'))
-            elif numeracao == 'L':
-                legislatura = Legislatura.objects.filter(
-                    data_inicio__year__lte=ano,
-                    data_fim__year__gte=ano).first()
-                data_inicio = legislatura.data_inicio
-                data_fim = legislatura.data_fim
-                numero = MateriaLegislativa.objects.filter(
-                    data_apresentacao__gte=data_inicio,
-                    data_apresentacao__lte=data_fim,
-                    tipo=tipo).aggregate(
-                    Max('numero'))
-            elif numeracao == 'U':
-                numero = MateriaLegislativa.objects.filter(
-                    tipo=tipo).aggregate(Max('numero'))
-            if numeracao is None:
-                numero['numero__max'] = 0
-
-            if cd['numero_materia_futuro'] and not MateriaLegislativa.objects.filter(tipo=tipo,
-                                                                                     ano=ano,
-                                                                                     numero=cd['numero_materia_futuro']):
-                max_numero = cd['numero_materia_futuro']
-            else:
-                max_numero = numero['numero__max'] + \
-                    1 if numero['numero__max'] else 1
+            max_numero, ano = MateriaLegislativa.get_proximo_numero(
+                tipo=tipo,
+                ano=None,
+                numero_candidato=cd.get('numero_materia_futuro', None)
+            )
 
             # dados básicos
             materia = MateriaLegislativa()
@@ -2653,7 +2615,9 @@ class ConfirmarProposicaoForm(ProposicaoForm):
 
         protocolo.save()
         HistoricoProposicao.objects.create(proposicao=proposicao,
-                                           status='E')
+                                           status='E',
+                                           user=self.initial['user'],
+                                           ip=self.initial['ip'])
 
         self.instance.results['messages']['success'].append(_(
             'Protocolo realizado com sucesso'))

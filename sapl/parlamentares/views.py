@@ -33,7 +33,7 @@ from sapl.materia.models import Autoria, Proposicao, Relatoria
 from sapl.norma.models import AutoriaNorma, NormaJuridica
 from sapl.parlamentares.apps import AppConfig
 from sapl.rules import SAPL_GROUP_VOTANTE
-from sapl.utils import (parlamentares_ativos, show_results_filter_set)
+from sapl.utils import (parlamentares_ativos, show_results_filter_set, ratelimit_ip)
 
 from .forms import (ColigacaoFilterSet, FiliacaoForm, FrenteForm, LegislaturaForm, MandatoForm,
                     ParlamentarCreateForm, ParlamentarForm, VotanteForm,
@@ -44,6 +44,11 @@ from .models import (CargoMesa, Coligacao, ComposicaoColigacao, ComposicaoMesa,
                      NivelInstrucao, Parlamentar, Partido, SessaoLegislativa,
                      SituacaoMilitar, TipoAfastamento, TipoDependente, Votante,
                      Bloco, FrenteCargo, FrenteParlamentar, BlocoCargo, BlocoMembro, MesaDiretora)
+
+from ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
+
+from ..settings import RATE_LIMITER_RATE
 
 FrenteCargoCrud = CrudAux.build(FrenteCargo, 'frente_cargo')
 BlocoCargoCrud = CrudAux.build(BlocoCargo, 'bloco_cargo')
@@ -113,12 +118,13 @@ class VotanteView(MasterDetailCrud):
 
 
 class FrenteList(MasterDetailCrud):
+    public = [RP_DETAIL, RP_LIST]
     model = Frente
     is_m2m = True
     parent_field = 'parlamentares'
     CreateView, UpdateView, DeleteView = None, None, None
 
-    class BaseMixin(Crud.PublicMixin, MasterDetailCrud.BaseMixin):
+    class BaseMixin(MasterDetailCrud.BaseMixin):
         list_field_names = ['nome', 'data_criacao', 'data_extincao']
 
         @classmethod
@@ -127,6 +133,7 @@ class FrenteList(MasterDetailCrud):
 
 
 class RelatoriaParlamentarCrud(CrudBaseForListAndDetailExternalAppView):
+    public = [RP_DETAIL, RP_LIST]
     model = Relatoria
     parent_field = 'parlamentar'
     help_topic = 'tramitacao_relatoria'
@@ -181,6 +188,10 @@ class ProposicaoParlamentarCrud(CrudBaseForListAndDetailExternalAppView):
                     _('Texto Eletrônico'))
 
 
+@method_decorator(ratelimit(key=ratelimit_ip,
+                            rate=RATE_LIMITER_RATE,
+                            block=True),
+                  name='dispatch')
 class PesquisarParlamentarView(FilterView):
     model = Parlamentar
     filterset_class = ParlamentarFilterSet
@@ -243,6 +254,10 @@ class PesquisarParlamentarView(FilterView):
         return self.render_to_response(context)
 
 
+@method_decorator(ratelimit(key=ratelimit_ip,
+                            rate=RATE_LIMITER_RATE,
+                            block=True),
+                  name='dispatch')
 class PesquisarColigacaoView(FilterView):
     model = Coligacao
     filterset_class = ColigacaoFilterSet
@@ -299,6 +314,10 @@ class PesquisarColigacaoView(FilterView):
         return self.render_to_response(context)
 
 
+@method_decorator(ratelimit(key=ratelimit_ip,
+                            rate=RATE_LIMITER_RATE,
+                            block=True),
+                  name='dispatch')
 class PesquisarPartidoView(FilterView):
     model = Partido
     filterset_class = PartidoFilterSet
@@ -355,6 +374,7 @@ class PesquisarPartidoView(FilterView):
 
 
 class ParticipacaoParlamentarCrud(CrudBaseForListAndDetailExternalAppView):
+    public = [RP_DETAIL, RP_LIST]
     model = Participacao
     parent_field = 'parlamentar'
     namespace = AppConfig.name
@@ -589,6 +609,7 @@ def get_parlamentar_frentes(request, pk):
     context = {
         'subnav_template_name': 'parlamentares/subnav.yaml',
         'root_pk': pk,
+        'sexo_parlamentar': Parlamentar.objects.get(id=pk).sexo,
         'nome_parlamentar': Parlamentar.objects.get(id=pk).nome_parlamentar,
         'frentes': frentes,
         'num_frentes': len(frentes)
@@ -1388,7 +1409,8 @@ def altera_field_mesa_public_view(request):
             partido_parlamentar_sessao_legislativa(sessao, parlamentar))
         if parlamentar.fotografia:
             try:
-                logger.warning(f"Iniciando cropping da imagem {parlamentar.fotografia}")
+                logger.warning(
+                    f"Iniciando cropping da imagem {parlamentar.fotografia}")
                 thumbnail_url = get_backend().get_thumbnail_url(
                     parlamentar.fotografia,
                     {
@@ -1398,7 +1420,8 @@ def altera_field_mesa_public_view(request):
                         'detail': True,
                     }
                 )
-                logger.warning(f"Cropping da imagem {parlamentar.fotografia} realizado com sucesso")
+                logger.warning(
+                    f"Cropping da imagem {parlamentar.fotografia} realizado com sucesso")
                 lista_fotos.append(thumbnail_url)
             except Exception as e:
                 logger.error(e)

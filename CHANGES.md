@@ -1,4 +1,155 @@
 
+3.1.165-RC3 / 2026-09-01
+========================
+
+  * Corrige SQL injection em DispositivoSearchFragmentFormView (#3856)
+  * Remove limite de caracteres do campo Informação Geral da Casa (#3848)
+  * Oculta sessões plenárias não iniciadas da consulta pública (#3845)
+  * hot-fix: Adiciona MIME Media Types opcionais para CSV.
+  * hot-fix: Remove alerta errado
+  * Corrige ordem dos expedientes no PDF do Resumo da Sessão (#3844)
+  * hot-fix: imprime somente contéudo da ocorrência
+  * Fix duplicate normas/matérias in author reports and prevent unfiltered queries
+  * Fix ValueError in audiencia form and AttributeError on HEAD requests
+  * Fix panel clock source and prevent overlapping polling
+  * hot-fix: recover epoch from server always
+  * Corrige polling excessivo e bloqueia não-votantes em /voto-individual/ (#3831)
+  * Hot-fix: corrige cópia de request.data
+  * Release: 3.1.165-RC2
+  * #3821 centralizar geração próximo número para create de matérias legislativas (#3822)
+
+3.1.166-RC0 / 2026-09-01
+========================
+
+
+
+3.1.165-RC2 / 2026-03-26
+========================
+
+  * Aumenta RATE_LIMITER_RATE default de 10/m para 35/m (#3824)
+  * #3821 centralizar geração próximo número para create de matérias legislativas (#3822)
+
+3.1.165-RC1 / 2026-02-24
+========================
+
+  * Hot-fix: fixes setup tool for Haystack
+
+3.1.165-RC0 / 2026-02-20
+========================
+
+  * Implementa Header LastModified na Api (#3808)
+  * Impl expansão dinâmica de campos na API (#3809)
+  * Seleciona tipo de votação para múltiplas matérias ao incluir na Ordem do Dia ou Expediente (#3781)
+  * Adiciona requestId em requisições
+  * Hot-fix: conserta erro em JS de voto individual
+  * Coloca negrito em resultado de votação
+  * Inversão da ordem de ano e número em Adicionar Norma
+  * Aumento de nome de parlamentar
+  * Aumento do tamanho de Nome e Tema da Audiência Pública
+  * Conserta bug na pesquisa do Relatório de Votações Nominais (#3803)
+  * feat: impl filtro m2m com lookup '__in' para buscas com multiplos ids (#3807)
+  * Refatora rate limiter
+  * Release: 3.1.164-RC5
+
+3.1.164-RC5 / 2025-09-22
+========================
+
+  * Adiciona smoke test for rate limiter
+  * Hot-fix: rate limiter get ip
+
+3.1.164-RC4 / 2025-09-22
+========================
+
+  * Fix recibo proposição e adiciona rate limiter em matéria e norma
+
+3.1.164-RC3 / 2025-09-16
+========================
+
+  * Health and Ready endpoints (#3788)
+  * Fix read-only mount on k8s
+  * Remove setup.py do projeto SAPL
+
+3.1.164-RC2 / 2025-09-08
+========================
+
+  * Restaura prod settings de docker-compose
+  * Restringe tipos de arquivos para upload (#3794)
+  * feat: cria script para remocao de proposicoes de um autor (#3703)
+  * HOT-Fix: Conserta erro introduzido no PR #3785
+  * Atualização da imagem base Docker (#3787)
+  * Ajustes solicitados - Relatório de Votações Nominais (#3785)
+  * Refatora lógica de geração de CSV/json/xlsx (#3786)
+  * Remove btn libras de media print (#3777)
+
+3.1.164-RC1 / 2025-08-05
+========================
+
+  * Adiciona botoes de impressao na pesquisa de doc adm
+  * Fix: conserta erro em historico proposicao
+  * Desabilita detalhe de Justificativa Ausência para acesso público
+  * Adiciona homepage do parlamentar a perfil público
+
+3.1.164-RC0 / 2025-07-09
+========================
+
+  * Fix: nome casa duplicado
+  * feat: #3771 (#3772)
+  * Adiciona metadados para Google crawler
+  * Remove version e monta mais um volume
+  * Fix: log de aplicação
+  * feat: #3769 (#3770)
+  * fix: #3767 (#3768)
+  * Release: 3.1.163
+
+3.1.163 / 2025-05-21
+====================
+
+  * Fix fancycompleter incompatibility when calling shell_plus
+
+3.1.163-RC24 / 2025-05-19
+=========================
+
+  * Implementa relatórios CSV, XLSX e JSON para Pauta de Sessão (#3744)
+  * feat: adiciona pydevd-pycharm para facilitar debug usando pycharm ide (#3717)
+  * Ajusta link do texto integral da Norma Jurídica nos formatos CSV, XLSX e JSON. (#3743)
+  * Força mudança de senha para senhas fracas
+  * Fix Chamado #643964 - Multiple definitions in dictionary at byte 0xc854c for key /Info
+  * Ajusta link do texto original da Matéria nos formatos CSV, XLSX e JSON. (#3742)
+  * fix: aplica um lazy loading no sortable do jquery ui pelo evento mouseenter. (#3737)
+  * fix: corrige condição para mostrar btn para TAs.
+  * fix: add migrate resultante do commit anterior
+  * fix: torna cep opcional no model CasaLegislativa
+
+3.1.163-RC23 / 2024-07-31
+=========================
+
+  * Otimiza recuperação de normas relacionadas (#3734)
+  * hot-fix: resolve imcompatibilidade de regex com versão de produção do postgresql 9.6
+
+3.1.163-RC21 / 2024-06-25
+=========================
+
+  * fix: descomenta código pertencente ao commit anterior
+  * fix: elimina dupla extração de assinaturas eletrônicas
+  * fix: remove listagem pública de OperadorAutor
+  * fix: altera campo de 'resultado' ao registrar leitura em bloco
+  * bump version gunicorn in setup.py
+  * rebuild frontend
+  * fix dependabot alerts #61 - bump version axios
+  * fix: ajuste no conjunto inicial de permissões na construção de classe crud
+  * Impl Mixin para gerar arquivos de pesq em diversos formatos (#3710)
+  * Fix estatistica norma view (#3707)
+  * bump version gunicorn, pillow
+  * Build(deps): Bump pillow from 10.0.1 to 10.3.0 in /requirements (#3709)
+  * fix: corrige display de data e hora de protocolor manual
+  * fix: corrige carga de permissões públicas do crud
+  * Add blank space when SAPN
+  * fix: corrige bug na pesquisa de impressos etiquetas (#3695)
+  * feat: adiciona o turno na info de materias na pauta de sessao (#3694)
+  * fix: invert lógica do sapln_switch
+  * fix: Update docker-compose.yaml
+  * Update CHANGES.md
+
 3.1.163-RC20 / 2023-12-04
 =========================
 
