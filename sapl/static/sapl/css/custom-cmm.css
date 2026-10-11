@@ -68,3 +68,17 @@ a {
     white-space: nowrap;
   }
 }
+
+
+/* Keep form actions inside the field grid with submit on the right. */
+.sapl-form-actions {
+  margin: .75rem 0 1rem;
+  width: 100%;
+  clear: both;
+  align-items: center;
+}
+
+
+.sapl-form-actions > input[type="submit"].float-right {
+  margin-left: auto;
+}

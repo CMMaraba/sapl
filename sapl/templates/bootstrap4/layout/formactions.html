@@ -1,4 +1,4 @@
-<div{% if formactions.attrs %} {{ formactions.flat_attrs|safe }}{% endif %} class="form-group row">
+<div{% if formactions.flat_attrs %} {{ formactions.flat_attrs|safe }}{% endif %} class="form-group row sapl-form-actions{% if formactions.css_class %} {{ formactions.css_class }}{% endif %}"{% if formactions.id %} id="{{ formactions.id }}"{% endif %}>
     {% if label_class %}
         <div class="aab {{ label_class }}"></div>
     {% endif %}
