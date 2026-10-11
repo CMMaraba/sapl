@@ -94,7 +94,6 @@ INSTALLED_APPS = (
                      'haystack',
                      'django.contrib.postgres',
 
-                     'webpack_loader',
 
                      'django_prometheus',
 
@@ -472,3 +471,4 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 TEMPLATES[0]['OPTIONS'].setdefault('libraries', {})['cropping'] = 'sapl.modern_components.templatetags.cropping'
 TEMPLATES[0]['OPTIONS']['libraries']['admin_static'] = 'django.templatetags.static'
 TEMPLATES[0]['OPTIONS']['libraries']['bootstrapped_goodies_tags'] = 'sapl.modern_components.templatetags.admin_compat'
+TEMPLATES[0]['OPTIONS']['libraries']['webpack_loader'] = 'sapl.modern_components.webpack_loader'

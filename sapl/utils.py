@@ -431,6 +431,7 @@ def create_barcode(value, width=170, height=50, dpi=72):
     creates a base64 encoded barcode PNG image
     """
     from base64 import b64encode
+    from reportlab.graphics import renderPM
     from reportlab.graphics.barcode import createBarcodeDrawing
 
     value_bytes = bytes(value, "ascii")
@@ -442,8 +443,12 @@ def create_barcode(value, width=170, height=50, dpi=72):
         fontSize=2,
         humanReadable=True
     )
-    # Lower DPI prevents Cairo surface from blowing up
-    png_bytes = barcode.asString("png", dpi=dpi)
+    # Keep Cairo raster surfaces below its dimension limit without changing
+    # the barcode drawing's physical dimensions.
+    max_surface_pixels = 16000
+    max_points = max(float(barcode.width), float(barcode.height), 1.0)
+    safe_dpi = min(dpi, 72.0 * max_surface_pixels / max_points)
+    png_bytes = renderPM.drawToString(barcode, fmt="PNG", dpi=safe_dpi)
     return b64encode(png_bytes).decode("utf-8")
 
 

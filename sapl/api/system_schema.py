@@ -49,6 +49,21 @@ class NativeSchemaGenerator(SchemaGenerator):
                               'application/vnd.oai.openapi+json', 'application/json')
             }}},
         }}
+        response_contracts = (
+            '/api/auth/token',
+            '/api/recriar-token/{id}',
+            '/api/materia/tipomaterialegislativa/{id}/change_position/',
+        )
+        for path in response_contracts:
+            operation = schema.get('paths', {}).get(path, {}).get('post')
+            if operation is None:
+                continue
+            responses = operation.setdefault('responses', {})
+            if '201' in responses and '200' not in responses:
+                responses['200'] = responses.pop('201')
+        recreate_token = schema.get('paths', {}).get('/api/recriar-token/{id}', {}).get('post')
+        if recreate_token is not None:
+            recreate_token.pop('requestBody', None)
         return schema
 
 
