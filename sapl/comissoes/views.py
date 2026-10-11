@@ -10,7 +10,7 @@ from django.views.generic import CreateView, DeleteView, FormView, ListView
 from django.views.generic.base import RedirectView
 from django.views.generic.detail import DetailView
 from django.views.generic.edit import FormMixin, UpdateView
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from django_filters.views import FilterView
 
@@ -33,7 +33,7 @@ from sapl.utils import show_results_filter_set, ratelimit_ip
 from .models import (CargoComissao, Comissao, Composicao, DocumentoAcessorio,
                      Participacao, Periodo, Reuniao, TipoComissao)
 
-from ratelimit.decorators import ratelimit
+from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 
 from ..settings import RATE_LIMITER_RATE

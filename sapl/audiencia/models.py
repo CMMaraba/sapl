@@ -1,11 +1,11 @@
 from django.db import models
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from model_utils import Choices
 from sapl.materia.models import MateriaLegislativa
 from sapl.parlamentares.models import CargoMesa
 
-from sapl.utils import (RANGE_ANOS, YES_NO_CHOICES, SaplGenericRelation,
+from sapl.utils import (range_anos_choices, YES_NO_CHOICES, SaplGenericRelation,
                         restringe_tipos_de_arquivo_txt, texto_upload_path,
                         OverwriteStorage)
 
@@ -63,7 +63,7 @@ class AudienciaPublica(models.Model):
                              verbose_name=_('Tipo de Audiência Pública'))
     numero = models.PositiveIntegerField(blank=True, verbose_name=_('Número'))
     ano = models.PositiveSmallIntegerField(verbose_name=_('Ano'),
-                                           choices=RANGE_ANOS)
+                                           choices=range_anos_choices)
     nome = models.CharField(
         max_length=250, verbose_name=_('Nome da Audiência Pública'))
     tema = models.CharField(

@@ -1,0 +1,7 @@
+{% load static %}<!doctype html>
+<html lang="pt-br"><head><meta charset="utf-8"><title>SAPL API</title>
+<link rel="stylesheet" href="{% static 'drf_spectacular_sidecar/swagger-ui-dist/swagger-ui.css' %}"></head>
+<body><div id="swagger-ui"></div>
+<script src="{% static 'drf_spectacular_sidecar/swagger-ui-dist/swagger-ui-bundle.js' %}"></script>
+<script>SwaggerUIBundle({url: "{{ schema_url|escapejs }}", dom_id: '#swagger-ui'});</script>
+</body></html>

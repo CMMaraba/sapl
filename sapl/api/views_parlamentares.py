@@ -37,7 +37,9 @@ class _ParlamentarViewSet:
     permission_classes = (ParlamentarPermission,)
 
     def get_serializer(self, *args, **kwargs):
-        if not self.request.user.has_perm('parlamentares.add_parlamentar'):
+        request = getattr(self, 'request', None)
+        user = getattr(request, 'user', None)
+        if user is None or not user.has_perm('parlamentares.add_parlamentar'):
             self.serializer_class = ParlamentarSerializerPublic
         return super().get_serializer(*args, **kwargs)
 

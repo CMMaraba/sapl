@@ -23,7 +23,8 @@ def test_username_do_usuario_logado_aparece_na_barra(client, user):
     assert '<a class="nav-link" href="/login/">Login</a>' not in str(
         response.content)
     assert 'jfirmino' in str(response.content)
-    assert '<a href="/logout/">Sair</a>' in str(response.content)
+    assert '<form method="post" action="/logout/"' in str(response.content)
+    assert 'csrfmiddlewaretoken' in str(response.content)
 
 
 # def test_nome_completo_do_usuario_logado_aparece_na_barra(client, user):
@@ -35,7 +36,8 @@ def test_username_do_usuario_logado_aparece_na_barra(client, user):
 #     response = client.get('/')
 #     assert '<a href="/login/">Login</a>' not in str(response.content)
 #     assert 'Joao Firmino' in str(response.content)
-#     assert '<a href="/logout/">Sair</a>' in str(response.content)
+#     assert '<form method="post" action="/logout/"' in str(response.content)
+    assert 'csrfmiddlewaretoken' in str(response.content)
 
 
 @pytest.mark.urls('sapl.base.tests.teststub_urls')
@@ -63,8 +65,9 @@ def test_logout(client, user, link_logout, destino):
     assert client.login(username='jfirmino', password='123')
     assert str(user.pk) == client.session['_auth_user_id']
 
-    # ... acionamos o link de logout
-    res = client.get(link_logout, follow=True)
+    # Logout deve ser POST para impedir CSRF via navegação GET.
+    assert client.get(link_logout).status_code == 405
+    res = client.post(link_logout, follow=True)
 
     destino_real = res.redirect_chain[-1][0]
 

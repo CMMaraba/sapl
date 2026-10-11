@@ -5,7 +5,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.db import IntegrityError, transaction
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from model_bakery import baker
 
 from sapl.parlamentares.models import Legislatura, SessaoLegislativa

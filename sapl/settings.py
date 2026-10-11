@@ -19,8 +19,7 @@ import sys
 
 from decouple import config, Csv
 from dj_database_url import parse as db_url
-from easy_thumbnails.conf import Settings as thumbnail_settings
-from unipath import Path
+from pathlib import Path
 
 logging.captureWarnings(True)
 
@@ -28,8 +27,8 @@ logger = logging.getLogger(__name__)
 
 host = socket.gethostbyname_ex(socket.gethostname())[0]
 
-BASE_DIR = Path(__file__).ancestor(1)
-PROJECT_DIR = Path(__file__).ancestor(2)
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY')
@@ -70,7 +69,6 @@ SAPL_APPS = (
 )
 
 INSTALLED_APPS = (
-                     'django_admin_bootstrapped',  # must come before django.contrib.admin
                      'django.contrib.admin',
                      'django.contrib.auth',
                      'django.contrib.contenttypes',
@@ -82,16 +80,15 @@ INSTALLED_APPS = (
                      'django_extensions',
 
                      'crispy_forms',
+                     'crispy_bootstrap4',
+                     'drf_spectacular_sidecar',
 
                      'waffle',
 
-                     'drf_spectacular',
                      'rest_framework',
                      'rest_framework.authtoken',
                      'django_filters',
 
-                     'easy_thumbnails',
-                     'image_cropping',
 
                      'haystack',
                      'django.contrib.postgres',
@@ -279,9 +276,7 @@ def setup_db_tz():
 setup_db_tz()
 
 IMAGE_CROPPING_JQUERY_URL = None
-THUMBNAIL_PROCESSORS = (
-                           'image_cropping.thumbnail_processors.crop_corners',
-                       ) + thumbnail_settings.THUMBNAIL_PROCESSORS
+THUMBNAIL_PROCESSORS = ()
 
 THUMBNAIL_SOURCE_GENERATORS = (
     'sapl.utils.pil_image',
@@ -337,27 +332,7 @@ USE_L10N = True
 USE_TZ = True
 
 
-##
-## Monkey patch of the Django 2.2 because latest version of psycopg2 returns DB time zone as UTC,
-## but Django 2.2 requires an int! This should be removed once we are able to upgrade to Django >= 4
-##
-import importlib
-from django.utils.timezone import utc
 
-pg_utils = importlib.import_module("django.db.backends.postgresql.utils")
-
-
-def _compat_utc_tzinfo_factory(offset):
-    try:
-        minutes = int(offset.total_seconds() // 60) if hasattr(offset, "total_seconds") else int(offset)
-    except Exception:
-        raise AssertionError("database connection isn't set to UTC")
-    if minutes != 0:
-        raise AssertionError("database connection isn't set to UTC")
-    return utc
-
-
-pg_utils.utc_tzinfo_factory = _compat_utc_tzinfo_factory
 
 # DATE_FORMAT = 'N j, Y'
 DATE_FORMAT = 'd/m/Y'
@@ -374,21 +349,20 @@ WEBPACK_LOADER = {
     'DEFAULT': {
         'CACHE': not DEBUG,
         'BUNDLE_DIR_NAME': 'sapl/static/sapl/frontend',
-        'STATS_FILE': PROJECT_DIR.child('frontend').child(f'{"dev-" if DEBUG else ""}webpack-stats.json'),
+        'STATS_FILE': (PROJECT_DIR / 'frontend' / f'{"dev-" if DEBUG else ""}webpack-stats.json'),
         'POLL_INTERVAL': 0.1,
         'TIMEOUT': None,
         'IGNORE': [r'.+\.hot-update.js', r'.+\.map']
     }
 }
 if DEBUG and not WEBPACK_LOADER['DEFAULT']['STATS_FILE'].exists():
-    WEBPACK_LOADER['DEFAULT']['STATS_FILE'] = PROJECT_DIR.child(
-        'frontend').child(f'webpack-stats.json')
+    WEBPACK_LOADER['DEFAULT']['STATS_FILE'] = PROJECT_DIR / 'frontend' / 'webpack-stats.json'
 
 STATIC_URL = '/static/'
-STATIC_ROOT = PROJECT_DIR.child("collected_static")
+STATIC_ROOT = PROJECT_DIR / "collected_static"
 
 STATICFILES_DIRS = (
-    BASE_DIR.child('static'),
+    BASE_DIR / 'static',
 )
 
 STATICFILES_FINDERS = (
@@ -396,15 +370,14 @@ STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 )
 
-MEDIA_ROOT = PROJECT_DIR.child("media")
+MEDIA_ROOT = PROJECT_DIR / "media"
 MEDIA_URL = '/media/'
 
 FILE_UPLOAD_PERMISSIONS = 0o644
 
-DAB_FIELD_RENDERER = \
-    'django_admin_bootstrapped.renderers.BootstrapFieldRenderer'
+
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
-CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap4'
+CRISPY_ALLOWED_TEMPLATE_PACKS = ('bootstrap4',)
 CRISPY_FAIL_SILENTLY = not DEBUG
 
 # suprime texto de ajuda default do django-filter
@@ -480,3 +453,12 @@ PASSWORD_HASHERS = [
 ]
 
 LOGOUT_REDIRECT_URL = '/login'
+
+# Native runtime and isolated experimental CT.
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+ALLOWED_HOSTS = ["10.3.150.110", "localhost", "127.0.0.1", "testserver", "sapl-modern-test"]
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": "redis://127.0.0.1:6379/1"}}
+USE_SOLR = False
+HAYSTACK_SIGNAL_PROCESSOR = "haystack.signals.BaseSignalProcessor"
+HAYSTACK_CONNECTIONS = {"default": {"ENGINE": "haystack.backends.simple_backend.SimpleEngine"}}

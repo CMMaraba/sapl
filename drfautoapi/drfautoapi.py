@@ -8,14 +8,14 @@ import re
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.postgres.fields.jsonb import JSONField
+from django.db.models import JSONField
 from django.contrib.auth import get_user_model
 from django.db.models.base import ModelBase
 from django.db.models.fields import TextField, CharField
 from django.db.models.fields.files import FileField
 from django.db.models.fields.related import ManyToManyField
 from django.template.defaultfilters import capfirst
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
 from django_filters.constants import ALL_FIELDS, EMPTY_VALUES
 from django_filters.fields import ModelMultipleChoiceField
@@ -258,10 +258,18 @@ class ApiViewSetConstrutor():
     @classmethod
     def router(cls, router_class = DefaultRouter):
         router = router_class()
+        used_basenames = set()
         for app, built_sets in cls._built_sets.items():
             for model, viewset in built_sets.items():
+                basename = model._meta.model_name
+                if basename in used_basenames:
+                    basename = f'{app.label}-{basename}'
+                if basename in used_basenames:
+                    raise ValueError(f'Duplicate API route basename: {basename}')
                 router.register(
-                    f'{app.label}/{model._meta.model_name}', viewset)
+                    f'{app.label}/{model._meta.model_name}', viewset,
+                    basename=basename)
+                used_basenames.add(basename)
         return router
 
     @classmethod

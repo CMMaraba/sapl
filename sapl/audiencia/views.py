@@ -9,7 +9,7 @@ from sapl.crud.base import RP_DETAIL, RP_LIST, Crud, MasterDetailCrud
 from .forms import AudienciaForm, AnexoAudienciaPublicaForm
 from .models import AudienciaPublica, AnexoAudienciaPublica
 
-from ratelimit.decorators import ratelimit
+from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 
 from ..settings import RATE_LIMITER_RATE

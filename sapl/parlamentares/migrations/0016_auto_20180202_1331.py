@@ -3,7 +3,7 @@
 from __future__ import unicode_literals
 
 from django.db import migrations
-import image_cropping.fields
+import sapl.modern_components.images
 import sapl.parlamentares.models
 import sapl.utils
 
@@ -18,13 +18,13 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='parlamentar',
             name='cropping',
-            field=image_cropping.fields.ImageRatioField('fotografia', '128x128', adapt_rotation=False, allow_fullsize=False, free_crop=False,
+            field=sapl.modern_components.images.ImageRatioField('fotografia', '128x128', adapt_rotation=False, allow_fullsize=False, free_crop=False,
                                                         help_text='A configuração do Avatar é possível após a atualização da fotografia.', hide_image_field=False, size_warning=False, verbose_name='Avatar'),
         ),
         migrations.AlterField(
             model_name='parlamentar',
             name='fotografia',
-            field=image_cropping.fields.ImageCropField(blank=True, null=True, upload_to=sapl.parlamentares.models.foto_upload_path, validators=[
+            field=sapl.modern_components.images.ImageCropField(blank=True, null=True, upload_to=sapl.parlamentares.models.foto_upload_path, validators=[
                                                        sapl.utils.restringe_tipos_de_arquivo_img], verbose_name='Fotografia'),
         ),
     ]

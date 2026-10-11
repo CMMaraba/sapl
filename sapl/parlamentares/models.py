@@ -1,8 +1,8 @@
 
 from django.db import models
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
-from image_cropping.fields import ImageCropField, ImageRatioField
+from django.utils.translation import gettext_lazy as _
+from sapl.modern_components.images import ImageCropField, ImageRatioField
 from model_utils import Choices
 
 from sapl.base.models import Autor

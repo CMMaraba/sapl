@@ -7,7 +7,7 @@ from random import choice
 import re
 from string import ascii_letters, digits
 
-from PyPDF4 import PdfFileMerger
+from pypdf import PdfWriter
 from braces.views import FormValidMessageMixin
 from django.conf import settings
 from django.contrib import messages
@@ -24,7 +24,7 @@ from django.shortcuts import redirect, get_object_or_404
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.generic import ListView, CreateView, UpdateView
 from django.views.generic.base import RedirectView, TemplateView
 from django.views.generic.edit import FormView
@@ -64,7 +64,7 @@ from .models import (Anexado, AcompanhamentoDocumento, DocumentoAcessorioAdminis
                      TipoDocumentoAdministrativo, TramitacaoAdministrativo)
 from ..settings import MEDIA_ROOT, RATE_LIMITER_RATE
 
-from ratelimit.decorators import ratelimit
+from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 
 TipoDocumentoAdministrativoCrud = CrudAux.build(
@@ -177,9 +177,9 @@ def create_pdf_docacessorios(docadministrativo):
     logger.info("Gerando compilado PDF de documentos acessorios com {} documentos"
                 .format(docs_path))
 
-    merger = PdfFileMerger(strict=False)
+    merger = PdfWriter(strict=False)
     for f in docs_path:
-        merger.append(fileobj=f)
+        merger.append(f)
 
     data = BytesIO()
     merger.write(data)

@@ -9,7 +9,7 @@ from string import ascii_letters, digits
 import time
 import zipfile
 
-from PyPDF4 import PdfFileReader, PdfFileMerger
+from pypdf import PdfReader, PdfWriter
 from crispy_forms.layout import HTML
 from django.conf import settings
 from django.contrib import messages
@@ -25,14 +25,14 @@ from django.shortcuts import render
 from django.template import loader
 from django.urls import reverse
 from django.utils import formats, timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.generic import CreateView, ListView, TemplateView, UpdateView
 from django.views.generic.base import RedirectView
 from django.views.generic.edit import FormView
 from django_filters.views import FilterView
 import weasyprint
 
-from ratelimit.decorators import ratelimit
+from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 
 import sapl
@@ -2981,9 +2981,9 @@ def create_pdf_docacessorios(materia):
         materia.pk,
         time.mktime(datetime.now().timetuple()))
 
-    merger = PdfFileMerger(strict=False)
+    merger = PdfWriter(strict=False)
     for f in docs_path:
-        merger.append(fileobj=f)
+        merger.append(f)
 
     data = BytesIO()
     merger.write(data)

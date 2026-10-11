@@ -34,8 +34,8 @@ TEMPLATES = [{
             'django.template.context_processors.debug',
             'django.template.context_processors.request',
             'django.contrib.auth.context_processors.auth',
-            "django.core.context_processors.media",
-            "django.core.context_processors.static",
+            "django.template.context_processors.media",
+            "django.template.context_processors.static",
             'django.contrib.messages.context_processors.messages',
         ],
     },
@@ -43,7 +43,7 @@ TEMPLATES = [{
 
 STATIC_URL = '/static/'
 
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE = (
     'django.contrib.sessions.middleware.SessionMiddleware',
     # 'django.middleware.locale.LocaleMiddleware',
     # 'django.middleware.common.CommonMiddleware',

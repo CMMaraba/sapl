@@ -3,7 +3,7 @@ from django import apps
 from django.conf import settings
 from django.db import connection, models
 from django.db.utils import DEFAULT_DB_ALIAS, IntegrityError
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 
 class AppConfig(apps.AppConfig):
@@ -18,11 +18,11 @@ class AppConfig(apps.AppConfig):
         from sapl.compilacao.utils import get_integrations_view_names
 
         from django.contrib.contenttypes.models import ContentType
-        from unipath import Path
+        from pathlib import Path
 
-        compilacao_app = Path(__file__).ancestor(1)
+        compilacao_app = Path(__file__).resolve().parent
         # print(compilacao_app)
-        with open(compilacao_app + '/compilacao_data_tables.sql', 'r') as f:
+        with open(compilacao_app / 'compilacao_data_tables.sql', 'r') as f:
             lines = f.readlines()
             lines = [line.rstrip('\n') for line in lines]
 

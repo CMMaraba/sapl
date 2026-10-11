@@ -1,4 +1,4 @@
-from django.conf.urls import include, url
+from django.urls import include, re_path as url
 
 from sapl.parlamentares.views import (CargoMesaCrud, ColigacaoCrud,
                                       coligacao_legislatura,

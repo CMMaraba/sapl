@@ -1,4 +1,4 @@
-from django.conf.urls import url
+from django.urls import re_path as url
 
 from .apps import AppConfig
 from .views import (cronometro_painel, get_dados_painel, painel_mensagem_view,

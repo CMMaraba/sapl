@@ -2,13 +2,13 @@ from django.contrib.contenttypes.fields import GenericRelation
 from django.db import models
 from django.template import defaultfilters
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from model_utils import Choices
 
 from sapl.base.models import Autor
 from sapl.compilacao.models import TextoArticulado
 from sapl.materia.models import MateriaLegislativa, Orgao
-from sapl.utils import (RANGE_ANOS, YES_NO_CHOICES,
+from sapl.utils import (range_anos_choices, YES_NO_CHOICES,
                         restringe_tipos_de_arquivo_txt,
                         texto_upload_path,
                         get_settings_auth_user_model,
@@ -157,7 +157,7 @@ class NormaJuridica(models.Model):
         max_length=8,
         verbose_name=_('Número'))
     ano = models.PositiveSmallIntegerField(verbose_name=_('Ano'),
-                                           choices=RANGE_ANOS)
+                                           choices=range_anos_choices)
     esfera_federacao = models.CharField(
         max_length=1,
         verbose_name=_('Esfera Federação'),
@@ -316,7 +316,7 @@ class NormaEstatisticas(models.Model):
     horario_acesso = models.DateTimeField(
         blank=True, null=True)
     ano = models.PositiveSmallIntegerField(verbose_name=_('Ano'),
-                                           choices=RANGE_ANOS, default=get_ano_atual)
+                                           choices=range_anos_choices, default=get_ano_atual)
     norma = models.ForeignKey(NormaJuridica,
                               on_delete=models.CASCADE)
 
@@ -496,7 +496,7 @@ class AnexoNormaJuridica(models.Model):
         storage=OverwriteStorage(),
         validators=[restringe_tipos_de_arquivo_txt])
     ano = models.PositiveSmallIntegerField(verbose_name=_('Ano'),
-                                           choices=RANGE_ANOS)
+                                           choices=range_anos_choices)
 
     class Meta:
         verbose_name = _('Anexo da Norma Juridica')

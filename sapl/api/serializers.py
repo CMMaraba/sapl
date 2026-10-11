@@ -6,7 +6,7 @@ from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from django.db.models import Q
 from django.urls import reverse
 from drfautoapi.drfautoapi import DrfAutoApiSerializerMixin
-from image_cropping.utils import get_backend
+from sapl.modern_components.images import get_backend
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
 

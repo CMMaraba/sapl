@@ -9,7 +9,7 @@ from django.db.models import Max
 from django.db.models.functions import Concat
 from django.template import defaultfilters
 from django.utils import formats, timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from model_utils import Choices
 
 
@@ -19,7 +19,7 @@ from sapl.parlamentares.models import Legislatura
 from sapl.compilacao.models import (PerfilEstruturalTextoArticulado,
                                     TextoArticulado)
 from sapl.parlamentares.models import Parlamentar
-from sapl.utils import (RANGE_ANOS, YES_NO_CHOICES, SaplGenericForeignKey,
+from sapl.utils import (range_anos_choices, YES_NO_CHOICES, SaplGenericForeignKey,
                         SaplGenericRelation, restringe_tipos_de_arquivo_txt,
                         texto_upload_path, get_settings_auth_user_model,
                         OverwriteStorage)
@@ -193,7 +193,7 @@ class MateriaLegislativa(models.Model):
         verbose_name=TipoMateriaLegislativa._meta.verbose_name)
     numero = models.PositiveIntegerField(verbose_name=_('Número'))
     ano = models.PositiveSmallIntegerField(verbose_name=_('Ano'),
-                                           choices=RANGE_ANOS)
+                                           choices=range_anos_choices)
     numero_protocolo = models.PositiveIntegerField(
         blank=True, null=True, verbose_name=_('Número do Protocolo'))
     data_apresentacao = models.DateField(
@@ -218,7 +218,7 @@ class MateriaLegislativa(models.Model):
     numero_origem_externa = models.CharField(
         max_length=10, blank=True, verbose_name=_('Número'))
     ano_origem_externa = models.PositiveSmallIntegerField(
-        blank=True, null=True, verbose_name=_('Ano'), choices=RANGE_ANOS)
+        blank=True, null=True, verbose_name=_('Ano'), choices=range_anos_choices)
     data_origem_externa = models.DateField(
         blank=True, null=True, verbose_name=_('Data'))
     local_origem_externa = models.ForeignKey(
@@ -738,7 +738,7 @@ class Numeracao(models.Model):
     numero_materia = models.CharField(max_length=5,
                                       verbose_name=_('Número'))
     ano_materia = models.PositiveSmallIntegerField(verbose_name=_('Ano'),
-                                                   choices=RANGE_ANOS)
+                                                   choices=range_anos_choices)
     data_materia = models.DateField(verbose_name=_('Data'), null=True)
 
     class Meta:
@@ -930,7 +930,7 @@ class Proposicao(models.Model):
         default=None,
         blank=True,
         null=True,
-        choices=RANGE_ANOS
+        choices=range_anos_choices
     )
 
     numero_proposicao = models.PositiveIntegerField(

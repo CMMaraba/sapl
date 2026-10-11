@@ -1,6 +1,5 @@
-from django.conf.urls import include, url
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, \
-    SpectacularRedocView
+from django.urls import include, re_path as url
+from sapl.api.system_schema import NativeSchemaView, SwaggerView, RedocView
 from rest_framework.authtoken.views import obtain_auth_token
 
 from sapl.api.deprecated import SessaoPlenariaViewSet
@@ -24,12 +23,12 @@ urlpatterns_router = router.urls
 
 urlpatterns_api_doc = [
     url('^schema/swagger-ui/',
-        SpectacularSwaggerView.as_view(url_name='sapl.api:schema_api'),
+        SwaggerView.as_view(url_name='sapl.api:schema_api'),
         name='swagger_ui_schema_api'),
     url('^schema/redoc/',
-        SpectacularRedocView.as_view(url_name='sapl.api:schema_api'),
+        RedocView.as_view(url_name='sapl.api:schema_api'),
         name='redoc_schema_api'),
-    url('^schema/', SpectacularAPIView.as_view(), name='schema_api'),
+    url('^schema/', NativeSchemaView.as_view(), name='schema_api'),
 ]
 
 urlpatterns = [

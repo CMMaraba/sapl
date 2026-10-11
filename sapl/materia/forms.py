@@ -15,7 +15,7 @@ from django.forms.models import ModelMultipleChoiceField
 from django.forms.widgets import CheckboxSelectMultiple, HiddenInput, Select
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 import django_filters
 
 from sapl.base.models import AppConfig as BaseAppConfig, Autor, TipoAutor
@@ -1542,7 +1542,6 @@ class TipoProposicaoForm(ModelForm):
         fields = ['descricao',
                   'content_type',
                   'tipo_conteudo_related_radio',
-                  'tipo_conteudo_related',
                   'perfis']
 
         widgets = {'tipo_conteudo_related': forms.HiddenInput(),

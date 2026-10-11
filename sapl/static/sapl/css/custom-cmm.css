@@ -1,4 +1,4 @@
-/* Customizações visuais da CMM — sobrepõe o bundle do webpack.
+/* Customizações visuais da CMM - sobrepõe o bundle do webpack.
    Mantido fora do bundle de propósito: sobrevive a upgrades do SAPL. */
 /* links em marrom institucional, em negrito (upstream: #02baf2, sem negrito) */
 
@@ -13,4 +13,48 @@ a {
 
 .masthead .navbar-brand img.img-responsive {
   height: 64px;
+}
+
+/* Desktop navbar: keep sections and account actions on one row. */
+@media (min-width: 992px) {
+  nav.navbar.navbar-expand-lg > .container {
+    width: 100%;
+    max-width: none;
+    flex-wrap: nowrap;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  nav.navbar.navbar-expand-lg #navbarNav {
+    display: flex !important;
+    flex-wrap: nowrap;
+    align-items: center;
+    min-width: 0;
+  }
+
+  nav.navbar.navbar-expand-lg #navbarNav > .navbar-nav {
+    flex-basis: auto;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    width: auto;
+  }
+
+  nav.navbar.navbar-expand-lg #navbarNav > .navbar-nav:first-child {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  nav.navbar.navbar-expand-lg #autenticacao {
+    flex: 0 0 auto;
+    margin-left: auto;
+    align-items: center;
+  }
+
+  nav.navbar.navbar-expand-lg #navbarNav > .navbar-nav > .nav-item > .nav-link {
+    line-height: 3rem;
+    font-size: clamp(.75rem, 1vw, .94rem);
+    padding-left: clamp(2px, .45vw, 8px);
+    padding-right: clamp(2px, .45vw, 8px);
+    white-space: nowrap;
+  }
 }

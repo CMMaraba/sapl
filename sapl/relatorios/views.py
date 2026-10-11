@@ -10,7 +10,7 @@ from django.db.models import Count, Q, F
 from django.http import Http404, HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.generic import TemplateView, ListView
 from django_filters.views import FilterView
 from weasyprint import HTML, CSS
@@ -59,7 +59,7 @@ from .templates import (pdf_capa_processo_gerar,
                         pdf_protocolo_gerar, pdf_sessao_plenaria_gerar)
 from sapl.crud.base import make_pagination
 
-from ratelimit.decorators import ratelimit
+from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 
 

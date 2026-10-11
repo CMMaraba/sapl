@@ -3,13 +3,13 @@ import re
 from django.db import models
 from django.utils import timezone
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from model_utils import Choices
 
 from sapl.base.models import Autor, AppConfig as SaplAppConfig
 from sapl.materia.models import TipoMateriaLegislativa, UnidadeTramitacao,\
     MateriaLegislativa
-from sapl.utils import (RANGE_ANOS, YES_NO_CHOICES, texto_upload_path,
+from sapl.utils import (range_anos_choices, YES_NO_CHOICES, texto_upload_path,
                         get_settings_auth_user_model,
                         OverwriteStorage)
 
@@ -60,7 +60,7 @@ class Protocolo(models.Model):
     ano = models.PositiveSmallIntegerField(
         blank=False,
         null=False,
-        choices=RANGE_ANOS,
+        choices=range_anos_choices,
         verbose_name=_('Ano do Protocolo'))
     data = models.DateField(
         null=True,
@@ -167,7 +167,7 @@ class DocumentoAdministrativo(models.Model):
                                    verbose_name=_('Complemento'))
 
     ano = models.PositiveSmallIntegerField(verbose_name=_('Ano'),
-                                           choices=RANGE_ANOS)
+                                           choices=range_anos_choices)
     protocolo = models.ForeignKey(
         Protocolo,
         blank=True,

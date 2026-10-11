@@ -14,7 +14,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  url(r'^blog/', include(blog_urls))
 """
 from django.conf import settings
-from django.conf.urls import include, url
+from django.urls import include, re_path as url
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path
@@ -105,7 +105,7 @@ if settings.DEBUG:
 # Make the rate limiter return 429 (Too Many Requests) instead of 403 (Forbidden Access)
 def custom_permission_denied_view(request, exception=None):
     from django.http import HttpResponse, HttpResponseForbidden
-    from ratelimit.exceptions import Ratelimited
+    from django_ratelimit.exceptions import Ratelimited
 
     if isinstance(exception, Ratelimited):
         resp = HttpResponse('Too many requests', status=429)

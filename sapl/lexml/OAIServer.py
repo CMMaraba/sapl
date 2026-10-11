@@ -1,10 +1,6 @@
 import unicodedata
 from datetime import datetime
 
-import oaipmh
-import oaipmh.error
-import oaipmh.metadata
-import oaipmh.server
 from django.urls import reverse
 from django.utils import timezone
 from lxml import etree
@@ -15,89 +11,60 @@ from sapl.base.models import AppConfig, CasaLegislativa
 from sapl.lexml.models import LexmlPublicador, LexmlProvedor
 from sapl.norma.models import NormaJuridica
 from sapl.utils import LISTA_DE_UFS
-
-
-class OAILEXML:
-    """
-        Padrao OAI do LeXML
-        Esta registrado sobre o nome 'oai_lexml'
-    """
-
-    def __init__(self, prefix):
-        self.prefix = prefix
-        self.ns = {'oai_lexml': 'http://www.lexml.gov.br/oai_lexml', }
-        self.schemas = {'oai_lexml': 'http://projeto.lexml.gov.br/esquemas/oai_lexml.xsd'}
-
-    def __call__(self, element, metadata):
-        data = metadata.record
-        if data.get('metadata'):
-            value = etree.XML(data['metadata'])
-            element.append(value)
+from sapl.modern_components.oai_protocol import OAIProtocolServer
 
 
 class OAIServer:
-    """
-        An OAI-2.0 compliant oai server.
-        Underlying code is based on pyoai's oaipmh.server'
-    """
+    """SAPL OAI record provider for the project-owned OAI-PMH layer."""
 
     XSI_NS = 'http://www.w3.org/2001/XMLSchema-instance'
     ns = {'lexml': 'http://www.lexml.gov.br/oai_lexml'}
-    schema = {'oai_lexml': 'http://projeto.lexml.gov.br/esquemas/oai_lexml.xsd'}
 
-    def __init__(self, config={}):
-        self.config = config
+    def __init__(self, config=None):
+        self.config = config or {}
 
-    def identify(self):
-        result = oaipmh.common.Identify(
-            repositoryName=self.config['titulo'],
-            baseURL=self.config['base_url'],
-            protocolVersion='2.0',
-            adminEmails=self.config['email'],
-            earliestDatestamp=datetime(2001, 1, 1, 10, 00),
-            deletedRecord='transient',
-            granularity='YYYY-MM-DDThh:mm:ssZ',
-            compression=['identity'],
-            toolkit_description=False)
-        if self.config.get('descricao'):
-            result.add_description(self.config['descricao'])
-        return result
+    def get_oai_record(self, identifier):
+        """Look up one record by its canonical SAPL OAI identifier."""
+        if not isinstance(identifier, str) or not identifier.startswith('oai:'):
+            return None
+        internal_id = identifier[4:]
+        institution = casa_legislativa()
+        domain_parts = institution.endereco_web.split('.')
+        domain = '.'.join(domain_parts[1:])
+        prefix = '{}.{}:sapl/'.format(institution.sigla.lower(), domain)
+        if not internal_id.startswith(prefix):
+            return None
+        try:
+            equivalent, year, number = internal_id[len(prefix):].rsplit(';', 2)
+            year = int(year)
+            if not number.isdigit():
+                return None
+        except (ValueError, TypeError):
+            return None
 
-    def create_header_and_metadata(self, record):
-        header = self.create_header(record)
-        metadata = oaipmh.common.Metadata(None, record['metadata'])
-        metadata.record = record
-        return header, metadata
-
-    def list_query(self, from_=None, until=None, offset=0, batch_size=10, identifier=None):
-        if identifier:
-            identifier = int(identifier.split('/')[-1])  # Get internal id
-        else:
-            identifier = ''
-        until = datetime.now() if not until or until > datetime.now() else until
-        return self.oai_query(offset=offset, batch_size=batch_size, from_=from_, until=until,
-                              identifier=identifier)
-
-    def check_metadata_prefix(self, metadata_prefix):
-        if not metadata_prefix in self.config['metadata_prefixes']:
-            raise oaipmh.error.CannotDisseminateFormatError
-
-    def listRecords(self, metadataPrefix, from_=None, until=None, cursor=0, batch_size=10):
-        self.check_metadata_prefix(metadataPrefix)
-        for record in self.list_query(from_, until, cursor, batch_size):
-            header, metadata = self.create_header_and_metadata(record)
-            yield header, metadata, None  # None?
-
-    def get_oai_id(self, internal_id):
-        return "oai:{}".format(internal_id)
-
-    def create_header(self, record):
-        oai_id = self.get_oai_id(record['record']['id'])
-        timestamp = record['record']['when_modified'] if record['record']['when_modified'] else datetime.now()
-        timestamp = timestamp.replace(tzinfo=None)
-        sets = []
-        deleted = record['record']['deleted']
-        return oaipmh.common.Header(None, oai_id, timestamp, sets, deleted)
+        esfera = self.get_esfera_federacao()
+        filters = {
+            'data__isnull': False,
+            'esfera_federacao__isnull': False,
+            'timestamp__isnull': False,
+            'tipo__equivalente_lexml': equivalent,
+            'ano': year,
+            'numero': number,
+        }
+        if esfera:
+            filters['esfera_federacao'] = esfera
+        norma = NormaJuridica.objects.select_related('tipo').filter(**filters).first()
+        if not norma or self.monta_id(norma) != internal_id:
+            return None
+        record_id = self.monta_id(norma)
+        return {
+            'record': {
+                'id': record_id,
+                'when_modified': norma.timestamp,
+                'deleted': 0,
+            },
+            'metadata': self.monta_xml(self.monta_urn(norma, esfera), norma),
+        }
 
     def get_esfera_federacao(self):
         appconfig = AppConfig.objects.first()
@@ -267,18 +234,8 @@ class OAIServer:
                    'metadata': resultado['tx_metadado_xml']}
 
 
-def OAIServerFactory(config={}):
-    """
-        Create a new OAI batching OAI Server given a config and a database
-    """
-    for prefix in config['metadata_prefixes']:
-        metadata_registry = oaipmh.metadata.MetadataRegistry()
-        metadata_registry.registerWriter(prefix, OAILEXML(prefix))
-    return oaipmh.server.BatchingServer(
-        OAIServer(config),
-        metadata_registry=metadata_registry,
-        resumption_batch_size=config['batch_size']
-    )
+def OAIServerFactory(config=None):
+    return OAIProtocolServer(OAIServer(config or {}))
 
 
 casa = None

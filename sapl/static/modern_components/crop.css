@@ -1,0 +1,9 @@
+.sapl-crop-ui { margin: .5rem 0; max-width: 640px; }
+.sapl-crop-stage { position: relative; display: inline-block; max-width: 100%; touch-action: none; cursor: crosshair; }
+.sapl-crop-image { display: block; max-width: 100%; max-height: 480px; width: auto; height: auto; user-select: none; }
+.sapl-crop-selection { position: absolute; box-sizing: border-box; border: 2px solid #1976d2; background: rgba(25,118,210,.15); pointer-events: none; }
+.sapl-crop-selection[hidden] { display: none; }
+.sapl-crop-selection.is-fullsize { border-style: dashed; background: transparent; }
+.sapl-crop-help { margin: .25rem 0; color: #555; font-size: .9em; }
+.sapl-crop-fullsize { display: block; margin: .25rem 0; }
+.sapl-crop-value { max-width: 24rem; }

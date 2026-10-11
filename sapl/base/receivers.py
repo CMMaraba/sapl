@@ -2,7 +2,7 @@ from datetime import datetime
 import inspect
 import logging
 
-from PyPDF4.pdf import PdfFileReader
+from pypdf import PdfReader
 from asn1crypto import cms
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
@@ -14,7 +14,7 @@ from django.db.models.signals import post_delete, post_save, \
 from django.db.utils import DEFAULT_DB_ALIAS
 from django.dispatch import receiver
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from sapl.base.email_utils import do_envia_email_tramitacao
 from sapl.base.models import AuditLog, TipoAutor, Autor, Metadata
@@ -285,14 +285,14 @@ def signed_files_extraction_function(sender, instance, **kwargs):
         # tenta extrair via /Fields
         fields_br = []
         try:
-            pdf = PdfFileReader(file)
-            fields = pdf.getFields()
+            pdf = PdfReader(file)
+            fields = pdf.get_fields()
             fields_br = list(
                 map(lambda x: x.get('/V', {}).get('/ByteRange', []), fields.values()))
         except Exception as e:
             try:
-                pdf = PdfFileReader(file, strict=False)
-                fields = pdf.getFields()
+                pdf = PdfReader(file, strict=False)
+                fields = pdf.get_fields()
                 fields_br = list(
                     map(lambda x: x.get('/V', {}).get('/ByteRange', []), fields.values()))
             except Exception as ee:

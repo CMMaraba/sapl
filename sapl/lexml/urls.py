@@ -1,4 +1,4 @@
-from django.conf.urls import include, url
+from django.urls import include, re_path as url
 
 from sapl.lexml.views import LexmlProvedorCrud, LexmlPublicadorCrud, lexml_request, request_search
 

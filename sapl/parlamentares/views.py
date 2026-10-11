@@ -16,12 +16,12 @@ from django.templatetags.static import static
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.datastructures import MultiValueDictKeyError
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.generic import FormView
 from django.views.generic.edit import UpdateView
 from django_filters.views import FilterView
-from image_cropping.utils import get_backend
+from sapl.modern_components.images import get_backend
 
 from sapl.base.forms import SessaoLegislativaForm, PartidoForm
 from sapl.base.models import Autor
@@ -45,7 +45,7 @@ from .models import (CargoMesa, Coligacao, ComposicaoColigacao, ComposicaoMesa,
                      SituacaoMilitar, TipoAfastamento, TipoDependente, Votante,
                      Bloco, FrenteCargo, FrenteParlamentar, BlocoCargo, BlocoMembro, MesaDiretora)
 
-from ratelimit.decorators import ratelimit
+from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 
 from ..settings import RATE_LIMITER_RATE

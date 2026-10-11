@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.conf.urls import include, url
+from django.urls import include, re_path as url
 
 from sapl.norma.views import (AnexoNormaJuridicaCrud, AssuntoNormaCrud,
                               NormaCrud, NormaPesquisaView,

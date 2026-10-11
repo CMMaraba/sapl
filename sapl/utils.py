@@ -35,15 +35,16 @@ from django.db.models.fields.related import ForeignKey
 from django.forms import BaseForm
 from django.forms.widgets import SplitDateTimeWidget, ClearableFileInput
 from django.http.response import JsonResponse, HttpResponse
-from django.utils import six, timezone
+from django.utils import timezone
 from django.utils.safestring import mark_safe
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 import django_filters
-from easy_thumbnails import source_generators
 import magic
 import requests
-from unipath.path import Path
+from pathlib import Path
 from xlsxwriter.workbook import Workbook
+from sapl.modern_components.image_processing import pil_image as native_pil_image
+from sapl.modern_components.image_processing import pil_image as native_pil_image
 
 from sapl.crispy_layout_mixin import (form_actions, SaplFormHelper,
                                       SaplFormLayout, to_row)
@@ -150,7 +151,7 @@ def validar_arquivo(arquivo, nome_campo):
 
 
 def pil_image(source, exif_orientation=False, **options):
-    return source_generators.pil_image(source, exif_orientation, **options)
+    return native_pil_image(source, exif_orientation=exif_orientation)
 
 
 def dont_break_out(value, max_part=50):
@@ -184,11 +185,9 @@ def clear_thumbnails_cache(queryset, field):
         if not path.exists():
             continue
 
-        cache_files = path.parent.walk()
-
-        for cf in cache_files:
-            if cf != path:
-                cf.remove()
+        for cache_file in path.parent.rglob('*'):
+            if cache_file.is_file() and cache_file != path:
+                cache_file.unlink(missing_ok=True)
 
 
 def normalize(txt):
@@ -402,13 +401,14 @@ def xstr(s):
 
 
 def get_client_ip(request):
-    from ratelimit.core import ip_mask
+    import ipaddress
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
         ip = x_forwarded_for.split(',')[0]
     else:
         ip = request.META.get('HTTP_X_REAL_IP') or request.META.get('REMOTE_ADDR') or '0.0.0.0'
-    return ip_mask(ip)
+    mask = getattr(settings, 'RATELIMIT_IPV6_MASK', 64) if ':' in ip else getattr(settings, 'RATELIMIT_IPV4_MASK', 32)
+    return str(ipaddress.ip_network(f'{ip}/{mask}', strict=False).network_address)
 
 
 def ratelimit_ip(group, request):
@@ -490,8 +490,12 @@ LISTA_DE_UFS = [
     ('EX', 'Exterior'),
 ]
 
-RANGE_ANOS = [(year, year) for year in range(timezone.now().year + 1,
-                                             1889, -1)]
+def range_anos_choices():
+    return [(year, year) for year in range(timezone.now().year + 1,
+                                           1889, -1)]
+
+
+RANGE_ANOS = range_anos_choices()
 
 RANGE_MESES = [
     (1, 'Janeiro'),
@@ -916,7 +920,7 @@ def qs_override_django_filter(self):
 
         # start with all the results and filter from there
         qs = self.queryset.all()
-        for name, filter_ in six.iteritems(self.filters):
+        for name, filter_ in self.filters.items():
             value = None
             if valid:
                 value = self.form.cleaned_data[name]
