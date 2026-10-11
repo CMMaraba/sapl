@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Erro no servidor | Câmara Municipal de Marabá</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: #282b33;
+      background: #f7f6f4;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 56px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    main {
+      width: min(100%, 940px);
+      text-align: center;
+    }
+
+    .identity {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 50px;
+    }
+
+    .identity img {
+      display: block;
+      width: 176px;
+      height: auto;
+    }
+
+    .identity span {
+      color: #45413e;
+      font-size: clamp(20px, 2.5vw, 27px);
+      font-weight: 700;
+      letter-spacing: -.025em;
+    }
+
+    .card {
+      padding: 60px 44px 46px;
+      background: #fff;
+      border: 1px solid #e2dfdc;
+      border-radius: 16px;
+      box-shadow: 0 14px 38px rgba(46, 42, 39, .08);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 10px 22px;
+      border-radius: 999px;
+      background: #eeeae7;
+      color: #5b514b;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 28px 0 18px;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.18;
+      letter-spacing: -.035em;
+    }
+
+    .explanation {
+      max-width: 640px;
+      margin: 0 auto;
+      color: #626875;
+      font-size: clamp(16px, 2vw, 20px);
+      line-height: 1.6;
+    }
+
+    .retry {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 52px;
+      margin-top: 36px;
+      padding: 0 30px;
+      border-radius: 8px;
+      background: #645a53;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .retry:hover { background: #514841; }
+    .retry:focus-visible { outline: 3px solid #88796f; outline-offset: 4px; }
+
+    .support {
+      margin: 38px 0 0;
+      padding-top: 28px;
+      border-top: 1px solid #e6e5e3;
+      color: #626875;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 600px) {
+      body { align-items: flex-start; padding: 40px 16px; }
+      .identity { margin-bottom: 30px; }
+      .identity img { width: 145px; }
+      .card { padding: 36px 22px 30px; border-radius: 12px; }
+      h1 { margin-top: 24px; }
+      .retry { width: 100%; }
+      .support { margin-top: 30px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="identity">
+      <img src="/media/sapl/public/casa/logotipo/logo_casa.png" width="147" height="64" alt="Logotipo da Câmara Municipal de Marabá">
+      <span>Câmara Municipal de Marabá</span>
+    </header>
+
+    <section class="card" aria-labelledby="error-title">
+      <span class="badge">Erro no servidor</span>
+      <h1 id="error-title">Não foi possível carregar esta página</h1>
+      <p class="explanation">Ocorreu uma falha temporária no servidor. Aguarde alguns instantes e tente novamente.</p>
+      <a class="retry" href="">Tentar novamente</a>
+      <p class="support">Se o problema continuar, entre em contato com o suporte da Câmara.</p>
+    </section>
+  </main>
+</body>
+</html>

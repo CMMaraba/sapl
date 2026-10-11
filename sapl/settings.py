@@ -318,6 +318,7 @@ MAX_IMAGE_UPLOAD_SIZE = 2 * 1024 * 1024  # 2MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 
 RATE_LIMITER_RATE = config('RATE_LIMITER_RATE', default='35/m')
+RATELIMIT_ENABLE = config('RATELIMIT_ENABLE', default=True, cast=bool)
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/

@@ -27,7 +27,8 @@ GROUP=`whoami`                                     # the group to run as (*)
 NUM_WORKERS=5                                      # how many worker processes should Gunicorn spawn (*)
                                                    # NUM_WORKERS = 2 * CPUS + 1
 TIMEOUT=300
-MAX_REQUESTS=100                                   # number of requests before restarting worker
+#MAX_REQUESTS=100                                   # number of requests before restarting worker
+MAX_REQUESTS=0                                     # disable automatic worker restarts
 DJANGO_SETTINGS_MODULE=sapl.settings               # which settings file should Django use (*)
 DJANGO_WSGI_MODULE=sapl.wsgi                       # WSGI module name (*)
 
@@ -39,17 +40,21 @@ test -d $RUNDIR || mkdir -p $RUNDIR
 
 # Start your Django Unicorn
 # Programs meant to be run under supervisor should not daemonize themselves (do not use --daemon)
+# Previous jitter setting (kept outside the continued command):
+#  --max-requests-jitter 50 \
 exec gunicorn ${DJANGO_WSGI_MODULE}:application \
   --name $NAME \
   --worker-class gthread --threads 4 \
   --worker-tmp-dir /dev/shm \
-  --max-requests-jitter 50 \
-  --log-level warning \
+  --max-requests-jitter 0 \
+  --log-level info \
   --timeout $TIMEOUT \
   --workers $NUM_WORKERS \
   --max-requests $MAX_REQUESTS \
   --user $USER \
   --forwarded-allow-ips='*' \
+  --access-logfile /var/log/sapl/access.log \
+  --access-logformat 'xff="%({x-forwarded-for}i)s" %(t)s pid=%(p)s "%(r)s" %(s)s %(b)s rt=%(L)s' \
   --error-logfile /var/log/sapl/error.log \
   --bind=unix:$SOCKFILE \
 #  --daemon
