@@ -462,3 +462,6 @@ CACHES = {"default": {"BACKEND": "django.core.cache.backends.redis.RedisCache", 
 USE_SOLR = False
 HAYSTACK_SIGNAL_PROCESSOR = "haystack.signals.BaseSignalProcessor"
 HAYSTACK_CONNECTIONS = {"default": {"ENGINE": "haystack.backends.simple_backend.SimpleEngine"}}
+
+# Native replacement for the legacy image-cropping template library.
+TEMPLATES[0]['OPTIONS'].setdefault('libraries', {})['cropping'] = 'sapl.modern_components.templatetags.cropping'

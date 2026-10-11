@@ -15,6 +15,8 @@ a {
   height: 64px;
 }
 
+.navbar-menu-divider { display: none; }
+
 /* Desktop navbar: keep sections and account actions on one row. */
 @media (min-width: 992px) {
   nav.navbar.navbar-expand-lg > .container {
@@ -27,6 +29,7 @@ a {
 
   nav.navbar.navbar-expand-lg #navbarNav {
     display: flex !important;
+    justify-content: center;
     flex-wrap: nowrap;
     align-items: center;
     min-width: 0;
@@ -40,13 +43,20 @@ a {
   }
 
   nav.navbar.navbar-expand-lg #navbarNav > .navbar-nav:first-child {
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     min-width: 0;
+  }
+
+  nav.navbar.navbar-expand-lg #navbarNav > .navbar-menu-divider {
+    display: block;
+    flex: 0 0 auto;
+    padding: 0 4px;
+    color: rgba(255, 255, 255, .75);
   }
 
   nav.navbar.navbar-expand-lg #autenticacao {
     flex: 0 0 auto;
-    margin-left: auto;
+    margin-left: 0;
     align-items: center;
   }
 
