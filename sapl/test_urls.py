@@ -1,65 +1,43 @@
-from django.apps import apps
-from django.contrib.auth import get_user_model
-from django.contrib.auth.management import _get_all_permissions
-from django.contrib.auth.models import Permission
-from django.contrib.contenttypes.models import ContentType
-from django.db import transaction
-from django.utils.translation import gettext_lazy as _
 import pytest
+from functools import lru_cache
 
-from sapl.crud.base import PermissionRequiredForAppCrudMixin
-from sapl.rules.apps import AppConfig, update_groups
+
 from scripts.lista_urls import lista_urls
 
-from .settings import SAPL_APPS
 
 
-pytestmark = pytest.mark.django_db
 
-sapl_appconfs = [apps.get_app_config(n[5:]) for n in SAPL_APPS]
 _lista_urls = lista_urls()
 
 
 def create_perms_post_migrate(sapl_app_config):
-    searched_perms = list()
-    # The codenames and ctypes that should exist.
-    ctypes = set()
+    """Create list/detail and Django default permissions for app models."""
+    from django.contrib.auth.management import _get_all_permissions
+    from django.contrib.auth.models import Permission
+    from django.contrib.contenttypes.models import ContentType
+    from django.utils.translation import gettext_lazy as _
 
+    searched_perms = []
+    ctypes = set()
     for klass in list(sapl_app_config.get_models()):
         opts = klass._meta
         permissions = (
-            ("list_" + opts.model_name,
-             "{} {}".format(_('Visualização da lista de'), opts.verbose_name_plural)),
-            ("detail_" + opts.model_name,
-             "{} {}".format(_('Visualização dos detalhes de'), opts.verbose_name_plural)),
+            ("list_" + opts.model_name, "{} {}".format(_('Visualização da lista de'), opts.verbose_name_plural)),
+            ("detail_" + opts.model_name, "{} {}".format(_('Visualização dos detalhes de'), opts.verbose_name_plural)),
         )
-        opts.permissions = tuple(
-            set(list(permissions) + list(opts.permissions)))
-
+        opts.permissions = tuple(set(list(permissions) + list(opts.permissions)))
         if opts.proxy:
-            # Force looking up the content types in the current database
-            # before creating foreign keys to them.
             app_label, model = opts.app_label, opts.model_name
-
             try:
-                ctype = ContentType.objects.get_by_natural_key(
-                    app_label, model)
-            except:
-                ctype = ContentType.objects.create(
-                    app_label=app_label, model=model)
+                ctype = ContentType.objects.get_by_natural_key(app_label, model)
+            except ContentType.DoesNotExist:
+                ctype = ContentType.objects.create(app_label=app_label, model=model)
         else:
             ctype = ContentType.objects.get_for_model(klass)
-
         ctypes.add(ctype)
         for perm in _get_all_permissions(klass._meta):
             searched_perms.append((ctype, perm))
-
-    all_perms = set(Permission.objects.filter(
-        content_type__in=ctypes,
-    ).values_list(
-        "content_type", "codename"
-    ))
-
+    all_perms = set(Permission.objects.filter(content_type__in=ctypes).values_list("content_type", "codename"))
     perms = [
         Permission(codename=codename, name=name, content_type=ct)
         for ct, (codename, name) in searched_perms
@@ -67,9 +45,20 @@ def create_perms_post_migrate(sapl_app_config):
     ]
     Permission.objects.bulk_create(perms)
 
+def _is_crudaux_list_url(url_item):
+    callback = url_item[0]
+    view_class = getattr(callback, 'view_class', None)
+    if view_class is None or not hasattr(view_class, 'crud'):
+        return False
+    crud_aux = any('CrudAux' in str(base) for base in type.mro(view_class.crud))
+    list_view = any('ListView' in str(base) for base in type.mro(view_class))
+    return crud_aux and list_view
 
-btn_login = ('<input class="btn btn-success btn-sm" '
-             'type="submit" value="login" />')
+_crudaux_list_urls = [
+    pytest.param(item, marks=pytest.mark.django_db)
+    for item in _lista_urls if _is_crudaux_list_url(item)
+]
+
 
 
 @pytest.mark.parametrize('url_item', _lista_urls)
@@ -104,8 +93,9 @@ def test_crudaux_formato_inicio_urls_associadas(url_item):
                     """ % (url)
 
 
-@pytest.mark.parametrize('url_item', _lista_urls)
-def test_crudaux_list_do_crud_esta_na_pagina_sistema(url_item, admin_client):
+@pytest.mark.parametrize('url_item', _crudaux_list_urls)
+def test_crudaux_list_do_crud_esta_na_pagina_sistema(url_item, request):
+    admin_client = request.getfixturevalue('admin_client')
     # Verifica a url é de um CrudAux e, se for, testa se está
     # na página Tabelas Auxiliares
     key, url, var, app_name = url_item
@@ -264,7 +254,7 @@ apps_url_patterns_prefixs_and_users = {
 
 
 @pytest.mark.parametrize('url_item', _lista_urls)
-def test_urlpatterns(url_item, admin_client):
+def test_urlpatterns(url_item):
     key, url, var, app_name = url_item
     url = '/' + (url % {v: 1 for v in var})
 
@@ -304,269 +294,613 @@ def test_urlpatterns(url_item, admin_client):
         pass
 
 
-urls_publicas_excecoes = {
-    'all': {
-        '/sessao/1/expediente',
-        '/sessao/1/mesa',
-        '/sessao/1/presenca',
-        '/sessao/1/presencaordemdia',
-        '/sessao/1/reordenar-expediente',
-        '/sessao/1/reordenar-ordem',
-        '/sessao/1/resumo',
-
-        '/sessao/pauta-sessao',
-        '/sessao/pauta-sessao/1',
-        '/sessao/pauta-sessao/1/ordem/',
-        '/sessao/pauta-sessao/1/expediente/',
-        '/sessao/pauta-sessao/pesquisar-pauta',
-
-        '/sessao/pesquisar-sessao',
-        '/sessao/sessao-legislativa-legislatura-ajax/',
-
-        # Usado na ed de Sessão Plenária, mas irrelevante ser acesso restrito
-        '/sessao/recuperar-numero-sessao/',
-
-        # irrelevante o acesso restrito.
-        '/sessao/recuperar-materia/',
-
-        # FIXME deve ser retirado de protocolo
-        '/protocoloadm/pesquisar-autor',
-
-        # FIXME Compilação deverá tratar
-        '/proposicao/1/ta',
-        '/materia/1/ta',
-        '/norma/1/ta',
-
-        '/comissao/1/materias-em-tramitacao',
-
-        '/sistema/relatorios/presenca',
-        '/sistema/relatorios/materia-por-tramitacao',
-        '/sistema/relatorios/materia-por-autor',
-        '/sistema/relatorios/materia-por-ano-autor-tipo',
-        '/sistema/relatorios/historico-tramitacoes',
-        '/sistema/relatorios/atas',
-        '/sistema/relatorios/',
-        '/sistema/ajuda/1',
-        '/sistema/ajuda/',
-        '/ajuda/',
-
-        '/email/validate/1/1',
-        '/materia/pesquisar-materia',
-
-        # usado na edição de matérias mas com restrição irrelevante
-        '/materia/recuperar_materia',
-
-        '/mesa-diretora/',  # tratamento de permissão interno.
-        '/norma/pesquisa',
-        '/norma/pesquisa-resultado',
-
-        # FIXME Retirar da lista de exceções quando proposição refatorada
-        '/proposicao/',
-        '/proposicao/1',
-        '/proposicao/create',
-        '/proposicao/1/edit',
-        '/proposicao/1/delete'
-
-    },
-    'get': [
-
-    ],
-    'post': [
-
-    ]
-}
-
-"""
-# gerar uma instancia de teste para cada usuário não foi possível. São 500
-urls para cada operador. Isso fez com que o Travis estourasse o tempo de
-processamento do teste... passando de 2hs... até outro modo, a estratégia de
-encapsular apenas as urls e testar em loop os operadores será mantida.
-
-operadores = ["operador_protocoloadm",
-              "operador_comissoes",
-              "operador_materia",
-              "operador_norma",
-              "operador_sessao",
-              "operador_painel",
-              "operador_geral",
-              "operador_autor",
-              "operador_administrativo", ]
-
-__lista_urls = []
-for item in _lista_urls:
-    for oper in operadores:
-        __lista_urls.append((oper, item))"""
 
 
-@pytest.mark.skip(reason="TODO: Lento demais. Precisa ser refatorado")
-@pytest.mark.django_db(transaction=False)
-@pytest.mark.parametrize('url_item', _lista_urls)
-def test_permissions_urls_for_users_by_apps(url_item, client):
-    # username, url_item = request_com_oper_na_url
-    key, url, var, app_name = url_item
 
-    url = '/' + (url % {v: 1 for v in var})
+def _sample_value(converter):
+    name = type(converter).__name__ if converter is not None else ""
+    if converter is None:
+        return 1
+    if name == "UUIDConverter":
+        return "00000000-0000-4000-8000-000000000001"
+    if name == "IntConverter":
+        return 1
+    if name == "FloatConverter":
+        return 1.5
+    if name == "PathConverter":
+        return "sample/path"
+    return "sample"
 
-    if url in urls_publicas_excecoes['all']:
+
+def _declared_function_methods(callback):
+    import inspect
+
+    methods = set()
+    current = callback
+    valid = {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE"}
+    while callable(current):
+        for cell in getattr(current, "__closure__", ()) or ():
+            try:
+                value = cell.cell_contents
+            except ValueError:
+                continue
+            if isinstance(value, (tuple, list)) and value and all(
+                isinstance(item, str) and item.upper() in valid for item in value
+            ):
+                methods.update(item.upper() for item in value)
+        current = getattr(current, "__wrapped__", None)
+    return methods
+
+
+def _bypass_outer_atomic(callback):
+    from django.db.transaction import Atomic
+
+    cells = getattr(callback, "__closure__", ()) or ()
+    for cell in cells:
+        try:
+            if isinstance(cell.cell_contents, Atomic):
+                return getattr(callback, "__wrapped__", callback)
+        except ValueError:
+            continue
+    return callback
+
+
+def _route_request(callback, url, variables):
+    from django.urls import get_resolver
+
+    converters = {}
+    try:
+        candidates = get_resolver().reverse_dict[callback]
+        if candidates:
+            converters = candidates[0][3]
+    except (KeyError, TypeError, IndexError):
+        pass
+    kwargs = {name: _sample_value(converters.get(name)) for name in variables}
+    if "sign" in kwargs:
+        kwargs["sign"] = "vigencia:abc"
+    if "uidb64" in kwargs:
+        kwargs["uidb64"] = "MQ"
+    if "token" in kwargs:
+        kwargs["token"] = "abc-123"
+    return "/" + (url % kwargs), kwargs
+
+
+@lru_cache(maxsize=None)
+def _auth_metadata(callback):
+    from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+    from scripts.lista_permissions_in_decorators import (
+        get_decorators,
+        get_permission_requireds,
+    )
+    from sapl.crud.base import (
+        PermissionRequiredContainerCrudMixin,
+        PermissionRequiredForAppCrudMixin,
+    )
+    import inspect
+
+    view = getattr(callback, "view_class", getattr(callback, "cls", callback))
+    if isinstance(view, type):
+        mro = view.mro()
+        if any(
+            "dispatch" in candidate.__dict__
+            and (
+                candidate.__module__.startswith("sapl.")
+                and candidate.__module__ != "sapl.crud.base"
+                or _bypass_outer_atomic(candidate.__dict__["dispatch"])
+                    is not candidate.__dict__["dispatch"]
+            )
+            for candidate in mro
+        ):
+            return "dynamic-data-guard", ("dispatch", view)
+        if any(issubclass(base, PermissionRequiredForAppCrudMixin) for base in mro):
+            base = PermissionRequiredForAppCrudMixin
+            if any(
+                ("has_permission" in candidate.__dict__ or "dispatch" in candidate.__dict__)
+                and candidate.__module__.startswith("sapl.")
+                and candidate.__module__ != "sapl.crud.base"
+                for candidate in mro[:mro.index(base)]
+            ):
+                return "dynamic-data-guard", ("app", view)
+            if any("has_permission" in candidate.__dict__ for candidate in mro[:mro.index(base)]):
+                return "dynamic-data-guard", ("app", view)
+            return "app-permission", view
+        if any(issubclass(base, PermissionRequiredContainerCrudMixin) for base in mro):
+            base = PermissionRequiredContainerCrudMixin
+            if any(
+                ("has_permission" in candidate.__dict__ or "dispatch" in candidate.__dict__)
+                and candidate.__module__.startswith("sapl.")
+                and candidate.__module__ != "sapl.crud.base"
+                for candidate in mro[:mro.index(base)]
+            ):
+                return "dynamic-data-guard", ("container", view)
+            if any("has_permission" in candidate.__dict__ for candidate in mro[:mro.index(base)]):
+                return "dynamic-data-guard", ("container", view)
+            return "container-permission", view
+        if any(issubclass(base, PermissionRequiredMixin) for base in mro):
+            base = PermissionRequiredMixin
+            if any(
+                ("has_permission" in candidate.__dict__ or "dispatch" in candidate.__dict__)
+                and candidate.__module__.startswith("sapl.")
+                and candidate.__module__ != "sapl.crud.base"
+                for candidate in mro[:mro.index(base)]
+            ):
+                return "dynamic-data-guard", ("permission", view)
+            if any("has_permission" in candidate.__dict__ for candidate in mro[:mro.index(base)]):
+                return "dynamic-data-guard", ("permission", view)
+            return "permission", view
+        method_contracts = {}
+        for method_name in getattr(view, "http_method_names", ()):
+            method_view = getattr(view, method_name, None)
+            if not callable(method_view):
+                continue
+            method_permissions = get_permission_requireds(method_view)
+            if method_permissions:
+                method_contracts[method_name.upper()] = ("permission", tuple(dict.fromkeys(method_permissions)))
+                continue
+            try:
+                method_decorators = get_decorators(inspect.unwrap(method_view))
+            except (OSError, TypeError, SyntaxError):
+                method_decorators = {}
+            method_names = {name for values in method_decorators.values() for name in values}
+            if "login_required" in method_names:
+                method_contracts[method_name.upper()] = ("login", ())
+        if method_contracts:
+            return "method-decorators", (view, method_contracts)
+        if getattr(view, "permission_classes", None) is not None:
+            classes = tuple(view.permission_classes)
+            if any(
+                "has_permission" in permission.__dict__
+                and not permission.__module__.startswith("rest_framework.permissions")
+                for permission in classes
+            ):
+                return "dynamic-data-guard", ("drf", classes)
+            return "drf", view
+    permissions = get_permission_requireds(view)
+    if permissions:
+        return "decorator-permission", (view, tuple(dict.fromkeys(permissions)))
+    try:
+        decorators = get_decorators(inspect.unwrap(view))
+    except (OSError, TypeError, SyntaxError):
+        decorators = {}
+    decorator_names = {name for values in decorators.values() for name in values}
+    if "login_required" in decorator_names:
+        return "decorator-login", view
+    return "undeclared", view
+
+
+class _PermissionProbe:
+    def __init__(self, *, authenticated, permissions=(), apps=(), grant_all=False, staff=False):
+        self.is_authenticated = authenticated
+        self.is_anonymous = not authenticated
+        self.permissions = set(permissions)
+        self.apps = set(apps)
+        self.grant_all = grant_all
+        self.pk = 1
+        self.username = "url-auth-probe"
+        self.is_active = True
+        self.is_staff = staff
+        self.is_superuser = staff
+        self.groups = ()
+
+    def has_perm(self, permission, obj=None):
+        return self.grant_all or permission in self.permissions
+
+    def has_perms(self, permissions, obj=None):
+        return all(self.has_perm(permission, obj) for permission in permissions)
+
+    def has_module_perms(self, app_label):
+        return self.grant_all or app_label in self.apps
+
+    def __str__(self):
+        return self.username
+
+
+def _replace_function_body(callback, handler):
+    chain = [callback]
+    while callable(getattr(chain[-1], "__wrapped__", None)):
+        chain.append(chain[-1].__wrapped__)
+    if len(chain) < 2:
+        raise AssertionError("A declared function auth gate has no wrapped handler")
+    for wrapper, child in reversed(list(zip(chain[:-1], chain[1:]))):
+        for cell in getattr(wrapper, "__closure__", ()) or ():
+            try:
+                current = cell.cell_contents
+            except ValueError:
+                continue
+            if current is child:
+                cell.cell_contents = handler
+                return lambda: setattr(cell, "cell_contents", child)
+    raise AssertionError("Could not isolate the wrapped function handler")
+
+
+def _assert_callback_gate(callback, path, kwargs, user, method, expected, policy, monkeypatch, request_fixture, drf=False, container=False, supported=True):
+    from django.core.exceptions import PermissionDenied
+    from django_ratelimit.exceptions import Ratelimited
+    from django.db.models.query import QuerySet
+    from types import SimpleNamespace
+    from sapl.base.models import AppConfig
+    from django.http import HttpResponse
+    from django.test import RequestFactory
+    from rest_framework.test import force_authenticate
+
+    reached = []
+
+    def handler(request, *args, **view_kwargs):
+        reached.append(method)
+        return HttpResponse(status=204)
+
+    view_class = getattr(callback, "view_class", getattr(callback, "cls", None))
+    if path == "/materia/recuperar-materia":
+        request_fixture.getfixturevalue("db")
+        probe_callback = callback
+    else:
+        probe_callback = _bypass_outer_atomic(callback) if view_class is None else callback
+    restore = None
+    handler_name = method.lower()
+    if view_class is not None:
+        if drf and hasattr(callback, "actions"):
+            handler_name = callback.actions.get(method.lower())
+            view_method = getattr(view_class, handler_name, None) if handler_name else None
+            allowed = getattr(view_class, "http_method_names", ())
+            supported = bool(handler_name) and method.lower() in allowed
+        else:
+            view_method = getattr(view_class, method.lower(), None)
+            allowed = getattr(view_class, "http_method_names", ())
+            supported = method.lower() in allowed and callable(view_method)
+        if drf and supported:
+            from rest_framework.response import Response
+
+            original_initial = view_class.initial
+
+            def gate_then_sentinel(self, request, *args, **view_kwargs):
+                original_initial(self, request, *args, **view_kwargs)
+
+                def handler(*handler_args, **handler_kwargs):
+                    reached.append(method)
+                    return Response(status=204)
+
+                setattr(self, method.lower(), handler)
+
+            monkeypatch.setattr(view_class, "initial", gate_then_sentinel)
+        elif (
+            supported
+            and policy == "method-decorators"
+            and callable(getattr(view_method, "__wrapped__", None))
+        ):
+            restore = _replace_function_body(view_method, handler)
+        elif supported:
+            monkeypatch.setattr(view_class, handler_name, handler, raising=False)
+    else:
+        restore = _replace_function_body(probe_callback, handler)
+
+    request = RequestFactory().generic(method, path)
+    import hashlib
+    import ipaddress
+
+    probe_identity = "|".join((
+        path, method, str(user.is_authenticated), str(user.is_staff),
+        str(user.grant_all), ",".join(sorted(user.permissions)),
+        ",".join(sorted(user.apps)),
+    ))
+    probe_digest = hashlib.sha256(probe_identity.encode()).hexdigest()
+    request.META["REMOTE_ADDR"] = str(ipaddress.IPv6Address(int(probe_digest[:32], 16)))
+    user.username = f"url-auth-probe-{probe_digest[:12]}"
+    user.pk = int(probe_digest[:8], 16) + 1
+    request._dont_enforce_csrf_checks = True
+    request.user = user
+    if drf:
+        force_authenticate(request, user=user if user.is_authenticated else None)
+    if container:
+        view_class = getattr(callback, "view_class", getattr(callback, "cls", None))
+        if view_class is not None:
+            original_dispatch = view_class.dispatch
+            def dispatch_without_ownership_filter(self, *args, **view_kwargs):
+                self.crud.container_field = ""
+                assert self.container_field == "", (type(self), self.crud, self.container_field)
+                return original_dispatch(self, *args, **view_kwargs)
+            monkeypatch.setattr(view_class, "dispatch", dispatch_without_ownership_filter)
+    config_probe = SimpleNamespace(documentos_administrativos="R")
+    monkeypatch.setattr(AppConfig.objects, "last", lambda: config_probe)
+    if drf:
+        # Auth probes use static model metadata and never evaluate data querysets.
+        monkeypatch.setattr(QuerySet, "first", lambda self: None)
+        monkeypatch.setattr(AppConfig.objects, "first", lambda: config_probe)
+        monkeypatch.setattr(AppConfig.objects, "last", lambda: config_probe)
+        monkeypatch.setattr(
+            AppConfig, "attr",
+            classmethod(lambda cls, name: getattr(config_probe, name)),
+        )
+        if view_class is not None and getattr(view_class, "queryset", None) is not None:
+            monkeypatch.setattr(
+                view_class, "get_queryset", lambda self: self.queryset, raising=False
+            )
+
+    denial_reason = None
+    try:
+        try:
+            response = probe_callback(request, **kwargs)
+            denied = response.status_code in (302, 401, 403)
+        except Ratelimited:
+            raise
+        except PermissionDenied as exc:
+            response = None
+            denied = True
+            denial_reason = f"{type(exc).__name__}: {exc}"
+        if not supported:
+            assert not reached, f"{method} {path} alcançou handler inexistente"
+            assert response is None or response.status_code in (302, 401, 403, 405), path
+        elif expected:
+            assert not denied, (
+                f"{method} {path} negou perfil autorizado "
+                f"(status={getattr(response, 'status_code', None)}, denial={denial_reason}, "
+                f"view={getattr(view_class, '__name__', None)}, "
+                f"declared={getattr(view_class, 'permission_required', None)})"
+            )
+            assert reached == [method], f"{method} {path} não alcançou handler sentinela (status={getattr(response, 'status_code', None)})"
+            assert response is not None and response.status_code == 204, path
+        else:
+            assert denied, f"{method} {path} aceitou perfil sem acesso"
+            assert not reached, f"{method} {path} alcançou handler antes da negação"
+    finally:
+        if restore is not None:
+            restore()
+
+
+@pytest.mark.parametrize("url_item", _lista_urls)
+def test_sapl_url_resolution_and_declared_auth(url_item, monkeypatch, request):
+    """Resolve every route and probe only detectable access contracts.
+
+    Known Django mixins, permission decorators, and standard DRF permission
+    classes run through their real callback for GET and POST. Synthetic users
+    and handler sentinels isolate the gate. Generic container ownership filters
+    and database-backed application configuration are fixed to a restrictive
+    mode. Custom data-dependent permission overrides are resolution-only and
+    recorded as dynamic-data-guard. Unsupported methods are checked for a
+    non-success denial or 405 without claiming auth coverage. This does not
+    validate endpoint data, persistence, response content, real group membership,
+    object-level get_object/has_object_permission, or PATCH/PUT/DELETE behavior.
+    Routes without a detectable contract are resolution-only and are not counted
+    as functional authorization coverage. Unsupported HTTP methods are checked
+    for a safe denial or 405 only. API/domain behavior needs separate endpoint tests.
+    """
+    from django.urls import resolve
+
+    callback, url, variables, app_name = url_item
+    path, kwargs = _route_request(callback, url, variables)
+    match = resolve(path)
+    expected_view = getattr(callback, "view_class", getattr(callback, "cls", callback))
+    actual_view = getattr(match.func, "view_class", getattr(match.func, "cls", match.func))
+    def view_identity(view):
+        return (
+            getattr(view, '__module__', None),
+            getattr(view, '__qualname__', getattr(view, '__name__', None)),
+            tuple(sorted(getattr(view, 'actions', {}).items()))
+            if isinstance(getattr(view, 'actions', None), dict) else None,
+        )
+
+    def view_signature(view):
+        if not isinstance(view, type):
+            return (
+                "function", getattr(view, "__module__", None),
+                getattr(view, "__qualname__", getattr(view, "__name__", None)),
+            )
+        crud = getattr(view, "crud", None)
+        model = getattr(view, "model", None) or getattr(crud, "model", None)
+        label = getattr(getattr(model, "_meta", None), "label_lower", None)
+        crud_name = (
+            f"{getattr(crud, '__module__', '')}.{getattr(crud, '__qualname__', '')}"
+            if crud is not None else None
+        )
+        mro_names = {base.__name__.lower() for base in view.mro()}
+        action = next((name for name in ("create", "update", "delete", "detail", "list")
+                       if any(name in item for item in mro_names)), None)
+        return (
+            label, crud_name,
+            getattr(crud, "parent_field", None),
+            getattr(crud, "container_field", None),
+            tuple(getattr(view, "permission_required", ()) or ()),
+            tuple(getattr(view, "http_method_names", ())),
+            getattr(view, "action", None), action,
+        )
+
+    expected_signature = view_signature(expected_view)
+    actual_signature = view_signature(actual_view)
+    same_view = view_identity(actual_view) == view_identity(expected_view)
+    if not same_view and isinstance(actual_view, type) and isinstance(expected_view, type):
+        same_view = actual_signature == expected_signature
+        if not same_view:
+            expected_crud = getattr(expected_view, "crud", None)
+            expected_model = getattr(expected_crud, "model", None)
+            specialized_multicreate = (
+                expected_model is not None
+                and expected_signature[7] == "create"
+                and actual_signature[7] == "create"
+                and actual_view.__name__.startswith(expected_model.__name__)
+                and actual_view.__name__.endswith("MultiCreateView")
+                and getattr(actual_view, "app_label", None) == expected_model._meta.app_label
+                and actual_signature[5] == expected_signature[5]
+                and any(base.__name__ == "PermissionRequiredForAppCrudMixin"
+                        for base in actual_view.mro())
+            )
+            same_view = specialized_multicreate
+    assert same_view, (
+        f"{app_name}: {path} resolveu para outra view "
+        f"(actual={actual_view!r}, expected={expected_view!r}, "
+        f"actual_signature={actual_signature!r}, "
+        f"expected_signature={expected_signature!r}, "
+        f"initkwargs={getattr(match.func, 'view_initkwargs', None)!r})"
+    )
+
+    callback = match.func
+    policy, subject = _auth_metadata(callback)
+    container = policy == "container-permission"
+    if policy == "undeclared":
         return
 
-    if not get_user_model().objects.exists():
-        for app in sapl_appconfs:
-            # readequa permissões dos models adicionando
-            # list e detail permissions
-            create_perms_post_migrate(app)
-        # cria usuários de perfil do sapl
-        update_groups(AppConfig)
-
-    users = get_user_model().objects.order_by(
-        'username').values_list('username', flat=True)
-
-    app_labels = app_name.split('.')[1]
-
-    view = None
-    if hasattr(key, 'view_class'):
-        view = key.view_class()
-
-        """
-        A classe PermissionRequiredForAppCrudMixin pode ser usada em uma
-        app mas envolver permissoes para outras
-        como é o caso de PainelView que está na app 'sessao'
-        mas é um redirecionamento para 'painel'... aqui é feita
-        a troca da app a ser testada, por essas outras possíveis.
-
-        Este, até a ultima versão deste teste é o único tipo de view que
-            possui restrição restrição simples, por permissão, e não por
-            container, como é o caso de proposições que possui restrição
-            por usuário e não só por, ou não tem, o campo permission_required
-        """
-        if issubclass(key.view_class, PermissionRequiredForAppCrudMixin):
-            # essa classe deve informar app_label
-            assert hasattr(key.view_class, 'app_label')
-            # app_label deve ter conteudo
-            assert key.view_class.app_label
-            app_labels = key.view_class.app_label
+    profiles = []
+    drf = policy == "drf"
+    if policy == "container-permission":
+        declared = getattr(subject, "permission_required", None)
+        assert declared is not None, f"{subject.__name__} não declara permission_required"
+        permissions = (declared,) if isinstance(declared, str) else tuple(declared)
+        profiles = [
+            (_PermissionProbe(authenticated=False), not permissions),
+            (_PermissionProbe(authenticated=True), not permissions),
+            (_PermissionProbe(authenticated=True, permissions=permissions, grant_all=True), True),
+        ]
+    if policy == "dynamic-data-guard":
+        kind, declared = subject
+        if kind in ("container", "permission", "app", "dispatch"):
+            if kind == "container":
+                required = getattr(declared, "permission_required", None)
+                assert required is not None, f"{declared.__name__} não declara permission_required"
+            return
         else:
+            assert declared and all(callable(getattr(permission, "has_permission", None)) for permission in declared)
+        return
+    if policy in ("permission", "container-permission"):
+        declared = getattr(subject, "permission_required", None)
+        assert declared is not None, f"{subject.__name__} não declara permission_required"
+        permissions = (declared,) if isinstance(declared, str) else tuple(declared)
+        public = not permissions
+        profiles = [
+            (_PermissionProbe(authenticated=False), public),
+            (_PermissionProbe(authenticated=True), public),
+            (_PermissionProbe(authenticated=True, permissions=permissions, grant_all=True), True),
+        ]
+    elif policy == "app-permission":
+        apps_required = getattr(subject, "app_label", None)
+        if apps_required is None:
+            model = getattr(subject, "model", None)
+            crud = getattr(subject, "crud", None)
+            if crud is not None:
+                model = getattr(crud, "model", model)
+            assert model is not None, f"{subject.__name__} não declara app_label ou model"
+            apps_required = model._meta.app_label
+        if isinstance(apps_required, str):
+            apps_required = (apps_required,)
+        public = not apps_required
+        profiles = [
+            (_PermissionProbe(authenticated=False), public),
+            (_PermissionProbe(authenticated=True), public),
+            (_PermissionProbe(authenticated=True, apps=apps_required, grant_all=True), True),
+        ]
+    elif policy == "decorator-permission":
+        view, permissions = subject
+        profiles = [
+            (_PermissionProbe(authenticated=False), False),
+            (_PermissionProbe(authenticated=True), False),
+            (_PermissionProbe(authenticated=True, permissions=permissions, grant_all=True), True),
+        ]
+    elif policy in ("login", "decorator-login"):
+        profiles = [
+            (_PermissionProbe(authenticated=False), False),
+            (_PermissionProbe(authenticated=True), True),
+        ]
+    elif policy in ("drf", "method-decorators"):
+        profiles = None
 
-            if hasattr(view, 'permission_required') and \
-                    view.permission_required is not None and \
-                    len(view.permission_required) == 0:
-                """
-                condição do Crud, se tem permission_required e ele é igual [],
-                então é uma view pública, teste liberado.
-                """
-                return
+
+    for method in ("GET", "POST"):
+        method_profiles = profiles
+        if policy == "method-decorators":
+            contract = subject[1].get(method)
+            if contract is None:
+                continue
+            contract_kind, contract_permissions = contract
+            if contract_kind == "permission":
+                method_profiles = [
+                    (_PermissionProbe(authenticated=False), False),
+                    (_PermissionProbe(authenticated=True), False),
+                    (_PermissionProbe(authenticated=True, permissions=contract_permissions, grant_all=True), True),
+                ]
             else:
-                """
-                Views que não se encaixam nãs condições acima, podem possuir
-                ou não restrição de acesso. Se o código continuar,
-                será tratado como tentativa de validar pois é possível
-                ter restrição local, como uma anotação method_required.
-                Caberá ao desenvolvedor de uma nova view, se for pública e
-                sem necessidade de nenhum tratamento de permissão, para limpar
-                o teste to py.test adicionar sua url
-                representativa na variavel externa ao teste:
+                method_profiles = [
+                    (_PermissionProbe(authenticated=False), False),
+                    (_PermissionProbe(authenticated=True), True),
+                ]
+        view_class = getattr(callback, "view_class", getattr(callback, "cls", None))
+        if drf and hasattr(callback, "actions"):
+            supported = (
+                bool(callback.actions.get(method.lower()))
+                and method.lower() in getattr(view_class, "http_method_names", ())
+            )
+        elif view_class is not None:
+            supported = method.lower() in getattr(view_class, "http_method_names", ()) and callable(getattr(view_class, method.lower(), None))
+        else:
+            declared_methods = _declared_function_methods(callback)
+            supported = not declared_methods or method in declared_methods
+        if drf and not supported:
+            method_profiles = [(_PermissionProbe(authenticated=False), False)]
+        elif drf:
+            from rest_framework.permissions import (
+                AllowAny, DjangoModelPermissions, DjangoModelPermissionsOrAnonReadOnly,
+                IsAdminUser, IsAuthenticated, IsAuthenticatedOrReadOnly,
+            )
+            from sapl.rules.map_rules import rules_patterns_public
 
-                    urls_publicas_excecoes, logo acima do teste
-                """
-                pass
-
-    if isinstance(app_labels, str):
-        app_labels = app_labels,
-
-    for app in app_labels:
-
-        assert app in apps_url_patterns_prefixs_and_users, """
-            O app_label (%s) associado a url (%s) não está na base de testes.
-            """ % (app_name, url)
-
-        if 'users' not in apps_url_patterns_prefixs_and_users[app]:
-            continue
-
-        users_for_url_atual_app = apps_url_patterns_prefixs_and_users[
-            app]['users']
-
-        for username in users:
-            print(app_name, username, users_for_url_atual_app, url)
-            client.login(username=username, password='interlegis')
-
-            rg = None
-            rg_error_content = ''
-            try:
-                if url not in urls_publicas_excecoes['get']:
-                    rg = client.get(url, {}, follow=True)
-            except Exception as e:
-                rg_error_content = str(e)
-
-            rp = None
-            rp_error_content = ''
-            try:
-                if url not in urls_publicas_excecoes['post']:
-                    with transaction.atomic():
-                        rp = client.post(url, {}, follow=True)
-            except Exception as e:
-                rp_error_content = str(e)
-
-            print(rg_error_content)
-            print(rp_error_content)
-
-            """
-            devido às urls serem incompletas ou com pks e outras valores
-            inexistentes na base, iniciar a execução da view, seja por get,
-            post ou qualquer outro método pode causar o erro...
-            por isso o "try ... except" acima.
-            No entanto, o objetivo do teste é validar o acesso de toda url.
-            Independente do erro que vá acontecer, esse erro não ocorrerá
-            se o user não tiver permissão de acesso pelo fato de que "AS
-            VIEWS BEM FORMADAS PARA VALIDAÇÃO DE ACESSO DEVEM SEMPRE
-            REDIRECIONAR PARA
-            LOGIN ANTES DE SUA EXECUÇÃO", desta forma nunca gerando erro
-            interno dada qualquer incoerência de parâmetros nas urls
-            """
-
-            for _type, content in (
-                    ('get', str(rg.content if rg else rg_error_content)),
-                    ('post', str(rp.content if rp else rp_error_content))):
-
-                if not content:
-                    continue
-
-                def _assert_login(_in):
-                    if _in:
-                        assert btn_login in content, """
-            No teste de requisição "%s" a url (%s). App (%s)
-            O usuário (%s) deveria ser redirecionado para tela de login.
-            Observe que o teste é suspenso no primeiro usuário que o erro
-            foi encontrado. Resolver especificamente para o usuário citado,
-            não significa que estará resolvido para todos os outros.
-            Se essa é uma url invariavelmente pública, a adicione na variavel
-            abaixo localizada no arquivo que se encontra este teste:
-
-                                urls_publicas_excecoes
-            """ % (_type, url, app, username)
-                    else:
-                        assert btn_login not in content, """
-            No teste de requisição "%s" a url (%s). App (%s)
-            O usuário (%s) não deveria ser redirecionado para tela de login.
-            Observe que o teste é suspenso no primeiro usuário que o erro
-            foi encontrado. Resolver especificamente para o usuário citado,
-            não significa que estará resolvido para todos os outros.
-            Se essa é uma url invariavelmente pública, a adicione na variavel
-            abaixo localizada no arquivo que se encontra este teste:
-
-                                urls_publicas_excecoes
-                            """ % (_type, url, app, username)
-
-                if username not in users_for_url_atual_app:
-                    # se não é usuário da app deve ser redirecionado para login
-                    _assert_login(True)
+            permission_classes = tuple(getattr(subject, "permission_classes", ()))
+            names = {permission.__name__ for permission in permission_classes}
+            safe = method in ("GET", "HEAD", "OPTIONS")
+            model = getattr(getattr(subject, "queryset", None), "model", None)
+            required = set()
+            public = False
+            sapl_permissions = any(issubclass(pc, DjangoModelPermissions) for pc in permission_classes)
+            if model is not None and sapl_permissions:
+                mapping = getattr(permission_classes[0], "perms_map", {})
+                required = {
+                    template % {"app_label": model._meta.app_label,
+                                "model_name": model._meta.model_name}
+                    for template in mapping.get(method, ())
+                }
+                key = f"{model._meta.app_label}:{model._meta.model_name}"
+                public = bool(required) and required.issubset(rules_patterns_public.get(key, set()))
+            ignored = bool(getattr(subject, "_ignore_model_permissions", False))
+            public_get_override = method == "GET" and any(
+                permission.__name__ in {"ProposicaoPermission", "ParlamentarPermission"}
+                for permission in permission_classes
+            )
+            if public_get_override or ignored or not names or names <= {AllowAny.__name__}:
+                method_profiles = [(_PermissionProbe(authenticated=False), True),
+                                   (_PermissionProbe(authenticated=True), True)]
+            elif IsAdminUser.__name__ in names:
+                method_profiles = [(_PermissionProbe(authenticated=False), False),
+                                   (_PermissionProbe(authenticated=True), False),
+                                   (_PermissionProbe(authenticated=True, grant_all=True, staff=True), True)]
+            elif IsAuthenticatedOrReadOnly.__name__ in names and safe:
+                method_profiles = [(_PermissionProbe(authenticated=False), True),
+                                   (_PermissionProbe(authenticated=True), True)]
+            elif DjangoModelPermissionsOrAnonReadOnly.__name__ in names and safe and public:
+                method_profiles = [(_PermissionProbe(authenticated=False), True),
+                                   (_PermissionProbe(authenticated=True), True)]
+            elif sapl_permissions and public and safe:
+                method_profiles = [(_PermissionProbe(authenticated=False), True),
+                                   (_PermissionProbe(authenticated=True), True),
+                                   (_PermissionProbe(authenticated=True, grant_all=True), True)]
+            elif sapl_permissions or DjangoModelPermissions.__name__ in names or DjangoModelPermissionsOrAnonReadOnly.__name__ in names:
+                if safe and not sapl_permissions:
+                    method_profiles = [(_PermissionProbe(authenticated=False), False),
+                                       (_PermissionProbe(authenticated=True), True)]
                 else:
-                    prefixs = users_for_url_atual_app[username]
-                    for pr in prefixs:
-                        if url.startswith(pr):
-                            _assert_login(False)
-                            break
+                    method_profiles = [(_PermissionProbe(authenticated=False), False),
+                                       (_PermissionProbe(authenticated=True), False),
+                                       (_PermissionProbe(authenticated=True, grant_all=True), True)]
+            elif IsAuthenticated.__name__ in names:
+                method_profiles = [(_PermissionProbe(authenticated=False), False),
+                                   (_PermissionProbe(authenticated=True), True)]
+            else:
+                method_profiles = [(_PermissionProbe(authenticated=False), False),
+                                   (_PermissionProbe(authenticated=True), False),
+                                   (_PermissionProbe(authenticated=True, grant_all=True, staff=True), True)]
+        for user, expected in method_profiles:
+            _assert_callback_gate(
+                callback, path, kwargs, user, method, expected, policy, monkeypatch, request,
+                drf=drf, container=container, supported=supported,
+            )
 
 
+
+@pytest.mark.django_db
 def test_robots_txt_get(admin_client):
     response = admin_client.get("/robots.txt")
 
