@@ -6,7 +6,7 @@
 #
 #source /home/cmm/.bashrc
 #source `which virtualenvwrapper.sh`
-export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3
+export VIRTUALENVWRAPPER_PYTHON="${VIRTUALENVWRAPPER_PYTHON:-/usr/bin/python3}"
 export WORKON_HOME=/var/interlegis/.virtualenvs
 export PROJECT_HOME=/var/interlegis
 source /usr/local/bin/virtualenvwrapper.sh
