@@ -79,7 +79,7 @@
                             </a></li>
                           {% endif %}
                           <li class="dropdown-item"><a href="{% url 'sapl.base:alterar_senha' %}">Alterar senha</a></li>
-                          <li class="dropdown-item"><form method="post" action="{% url 'sapl.base:logout' %}" class="d-inline">{% csrf_token %}<button type="submit" class="dropdown-item">Sair</button></form></li>
+                          <li class="dropdown-item"><form method="post" action="{% url 'sapl.base:logout' %}" class="dropdown-action-form">{% csrf_token %}<button type="submit" class="dropdown-menu-action">Sair</button></form></li>
                         </ul>
                       </li>
                     {% endif %}

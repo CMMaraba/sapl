@@ -264,3 +264,43 @@ p.file-upload > input[type="file"] {
   background-color: #337ab7;
   border-color: #337ab7;
 }
+
+/* Logout POST: match Bootstrap dropdown links without button chrome. */
+#header-navbar-collapse .dropdown-action-form {
+    margin: 0;
+}
+#header-navbar-collapse .dropdown-menu-action {
+    display: block;
+    width: 100%;
+    padding: 3px 20px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #333;
+    font: inherit;
+    font-weight: normal;
+    line-height: 1.42857143;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+#header-navbar-collapse .dropdown-menu-action:hover,
+#header-navbar-collapse .dropdown-menu-action:focus {
+    background: #f5f5f5;
+    color: #262626;
+}
+#header-navbar-collapse .dropdown-menu-action:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: -2px;
+}
+@media (max-width: 767px) {
+    #header-navbar-collapse .navbar-nav .open .dropdown-menu-action {
+        padding: 5px 15px 5px 25px;
+        color: #777;
+    }
+    #header-navbar-collapse .navbar-nav .open .dropdown-menu-action:hover,
+    #header-navbar-collapse .navbar-nav .open .dropdown-menu-action:focus {
+        background: transparent;
+        color: #333;
+    }
+}
