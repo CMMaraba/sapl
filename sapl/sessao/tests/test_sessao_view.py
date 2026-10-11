@@ -71,7 +71,7 @@ def test_incluir_sessao_errors(admin_client):
 
 @pytest.mark.django_db(transaction=False)
 class TestResumoView():
-    def setup(self):
+    def setup_method(self, method=None):
         self.sessao_plenaria = baker.make(SessaoPlenaria)
         self.parlamentar = baker.make(Parlamentar)
         self.cargo_mesa = baker.make(CargoMesa)
@@ -146,7 +146,9 @@ class TestResumoView():
         assert resultado_get_oradores['oradores_explicacoes'] == [{
                 'numero_ordem': orador.numero_ordem,
                 'parlamentar': parlamentar,
-                'sgl_partido': partido_sigla.partido.sigla
+                'sgl_partido': partido_sigla.partido.sigla,
+                'observacao': orador.observacao,
+                'url_discurso': orador.url_discurso
         }]
 
     def test_get_ocorrencias_da_sessao(self):

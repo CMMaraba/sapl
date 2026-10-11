@@ -11,6 +11,7 @@ import zipfile
 
 from pypdf import PdfReader, PdfWriter
 from crispy_forms.layout import HTML
+from sapl.modern_components.timezones import localize_legacy
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
@@ -244,7 +245,7 @@ class CriarProtocoloMateriaView(CreateView):
         materia.ip = get_client_ip(self.request)
 
         tz = timezone.get_current_timezone()
-        materia.ultima_edicao = tz.localize(datetime.now())
+        materia.ultima_edicao = localize_legacy(datetime.now(), tz)
 
         materia.save()
 
@@ -1040,7 +1041,7 @@ class ProposicaoCrud(Crud):
                     or tipo_texto == 'T' and not objeto_antigo.texto_articulado.exists():
                 self.object.user = self.request.user
                 self.object.ip = get_client_ip(self.request)
-                self.object.ultima_edicao = tz.localize(datetime.now())
+                self.object.ultima_edicao = localize_legacy(datetime.now(), tz)
                 self.object.save()
 
             self.object = form.save()
@@ -1058,7 +1059,7 @@ class ProposicaoCrud(Crud):
                 if dict_objeto_antigo[atributo] != dict_objeto_novo[atributo]:
                     self.object.user = self.request.user
                     self.object.ip = get_client_ip(self.request)
-                    self.object.ultima_edicao = tz.localize(datetime.now())
+                    self.object.ultima_edicao = localize_legacy(datetime.now(), tz)
                     self.object.save()
                     break
 
@@ -1116,7 +1117,7 @@ class ProposicaoCrud(Crud):
             initial['ip'] = get_client_ip(self.request)
 
             tz = timezone.get_current_timezone()
-            initial['ultima_edicao'] = tz.localize(datetime.now())
+            initial['ultima_edicao'] = localize_legacy(datetime.now(), tz)
 
             return initial
 
@@ -1375,7 +1376,7 @@ class TramitacaoCrud(MasterDetailCrud):
             initial['user'] = self.request.user
 
             tz = timezone.get_current_timezone()
-            initial['ultima_edicao'] = tz.localize(datetime.now())
+            initial['ultima_edicao'] = localize_legacy(datetime.now(), tz)
 
             return initial
 
@@ -1428,7 +1429,7 @@ class TramitacaoCrud(MasterDetailCrud):
             initial['user'] = self.request.user
 
             tz = timezone.get_current_timezone()
-            initial['ultima_edicao'] = tz.localize(datetime.now())
+            initial['ultima_edicao'] = localize_legacy(datetime.now(), tz)
 
             return initial
 
@@ -1822,7 +1823,7 @@ class MateriaLegislativaCrud(Crud):
             initial['ip'] = get_client_ip(self.request)
 
             tz = timezone.get_current_timezone()
-            initial['ultima_edicao'] = tz.localize(datetime.now())
+            initial['ultima_edicao'] = localize_legacy(datetime.now(), tz)
 
             return initial
 
@@ -1857,7 +1858,7 @@ class MateriaLegislativaCrud(Crud):
                     self.object.ip = get_client_ip(self.request)
 
                     tz = timezone.get_current_timezone()
-                    self.object.ultima_edicao = tz.localize(datetime.now())
+                    self.object.ultima_edicao = localize_legacy(datetime.now(), tz)
 
                     self.object.save()
                     break
@@ -2342,8 +2343,8 @@ class DocumentoAcessorioEmLoteView(PermissionRequiredMixin, FilterView):
             for chunk in request.FILES['arquivo'].chunks():
                 destination.write(chunk)
         try:
-            doc_data = tz.localize(datetime.strptime(
-                request.POST['data'], "%d/%m/%Y"))
+            doc_data = localize_legacy(datetime.strptime(
+                request.POST['data'], "%d/%m/%Y"), tz)
         except Exception as e:
             msg = _(
                 'Formato da data incorreto. O formato deve ser da forma dd/mm/aaaa.')
@@ -2574,7 +2575,7 @@ class PrimeiraTramitacaoEmLoteView(PermissionRequiredMixin, FilterView):
         ip = get_client_ip(request)
 
         tz = timezone.get_current_timezone()
-        ultima_edicao = tz.localize(datetime.now())
+        ultima_edicao = localize_legacy(datetime.now(), tz)
 
         materias_ids = request.POST.getlist('materias')
         if not materias_ids:

@@ -37,7 +37,7 @@ class OAIServer:
         try:
             equivalent, year, number = internal_id[len(prefix):].rsplit(';', 2)
             year = int(year)
-            if not number.isdigit():
+            if not number:
                 return None
         except (ValueError, TypeError):
             return None

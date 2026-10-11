@@ -24,6 +24,13 @@ for app in sapl_appconfs:
     sapl_models.extend(app.get_models())
 sapl_models.reverse()
 
+# These consistency checks concern generated authorization rules for models
+# backed by managed database tables. Unmanaged SQL views have no table-level
+# create/list/change/delete permissions to require; their access is governed
+# by the explicit view/API authorization checks below. Keep sapl_models intact
+# for CRUD permission checks on every model that appears in a rule.
+managed_sapl_models = [model for model in sapl_models if model._meta.managed]
+
 
 @pytest.mark.parametrize('group_item', SAPL_GROUPS)
 def test_groups_in_rules_patterns(group_item):
@@ -36,7 +43,7 @@ def test_groups_in_rules_patterns(group_item):
     assert test, _('O grupo (%s) não foi a rules_patterns.') % (group_item)
 
 
-@pytest.mark.parametrize('model_item', sapl_models)
+@pytest.mark.parametrize('model_item', managed_sapl_models)
 def test_models_in_rules_patterns(model_item):
 
     test = False
@@ -87,7 +94,7 @@ __fp__in__test_permission_of_models_in_rules_patterns = {
 
 
 @pytest.mark.django_db(transaction=False)
-@pytest.mark.parametrize('model_item', sapl_models)
+@pytest.mark.parametrize('model_item', managed_sapl_models)
 def test_permission_of_models_in_rules_patterns(model_item):
 
     create_perms_post_migrate(model_item._meta.app_config)

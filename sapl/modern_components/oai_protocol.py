@@ -30,6 +30,10 @@ class OAIProtocolError(Exception):
         self.message = message
 
 
+class OAIServiceError(Exception):
+    """Internal failure returned as HTTP 503, not an invented protocol code."""
+
+
 class OAIProtocolServer:
     """Adapter matching the former handleRequest(dict) interface."""
 
@@ -44,18 +48,18 @@ class OAIProtocolServer:
         params = {}
         try:
             params = self._normalize(request_kw)
-        except OAIProtocolError as error:
             root = self._envelope(params)
-            self._append_error(root, error.code, error.message)
-            return etree.tostring(root, encoding="UTF-8", xml_declaration=True, pretty_print=True)
-        root = self._envelope(params)
-        try:
             self._dispatch(root, params)
         except OAIProtocolError as error:
+            # Errors replace any partially built verb response. Invalid request
+            # arguments and verbs must not be echoed as XML attributes.
+            echo = {} if error.code in ("badArgument", "badVerb") else params
+            root = self._envelope(echo)
             self._append_error(root, error.code, error.message)
-        except Exception:
-            # Keep internal failures out of the public protocol response.
-            self._append_error(root, "unknownError", "The request could not be completed.")
+        except OAIServiceError:
+            raise
+        except Exception as error:
+            raise OAIServiceError("The OAI service could not complete the request.") from error
         return etree.tostring(root, encoding="UTF-8", xml_declaration=True, pretty_print=True)
 
     def _normalize(self, request_kw):
@@ -67,7 +71,12 @@ class OAIProtocolServer:
                 value = value[0] if value else ""
             if isinstance(value, bytes):
                 value = value.decode("utf-8", "replace")
-            params[str(key)] = str(value)
+            key, value = str(key), str(value)
+            if key not in {"verb", "identifier", "metadataPrefix", "from", "until", "set", "resumptionToken"}:
+                raise OAIProtocolError("badArgument", "The request contains an unexpected argument.")
+            if re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]", value):
+                raise OAIProtocolError("badArgument", "An argument contains invalid XML characters.")
+            params[key] = value
         return params
 
     def _envelope(self, params):
@@ -101,10 +110,11 @@ class OAIProtocolServer:
         return value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     @staticmethod
-    def _parse_date(value):
+    def _parse_date(value, inclusive=False):
         try:
             if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
-                return datetime.strptime(value, "%Y-%m-%d")
+                parsed = datetime.strptime(value, "%Y-%m-%d")
+                return parsed.replace(hour=23, minute=59, second=59) if inclusive else parsed
             if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", value):
                 return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
         except ValueError:
@@ -157,13 +167,11 @@ class OAIProtocolServer:
         description = self.config.get("descricao")
         if description:
             try:
-                node = etree.fromstring(
-                    description.encode("utf-8") if isinstance(description, str) else description
-                )
+                node = self._parse_xml(description)
                 wrapper = etree.SubElement(identify, _Q("description"))
                 wrapper.append(node)
             except (TypeError, ValueError, etree.XMLSyntaxError):
-                raise OAIProtocolError("unknownError", "Repository description is invalid XML.")
+                raise OAIServiceError("Repository description is invalid XML.")
 
     def _list_metadata_formats(self, root, params):
         identifier = params.get("identifier")
@@ -177,13 +185,16 @@ class OAIProtocolServer:
 
     def _token_args(self, token, verb):
         try:
-            raw = base64.urlsafe_b64decode(token + "=" * (-len(token) % 4))
+            if len(token) > 4096:
+                raise ValueError("oversized token")
+            raw = base64.b64decode(token + "=" * (-len(token) % 4), altchars=b"-_", validate=True)
             payload = json.loads(raw.decode("utf-8"))
             if (
-                payload.get("v") != 1
+                not isinstance(payload, dict)
+                or payload.get("v") != 1
                 or payload.get("verb") != verb
-                or not isinstance(payload.get("offset"), int)
-                or payload["offset"] < 0
+                or type(payload.get("offset")) is not int
+                or not 0 <= payload["offset"] <= 2**63 - 1
                 or payload.get("prefix") != OAI_PREFIX
             ):
                 raise ValueError("invalid token fields")
@@ -193,7 +204,7 @@ class OAIProtocolServer:
                 "offset": payload["offset"],
                 "prefix": OAI_PREFIX,
                 "from": self._parse_date(from_value) if from_value else None,
-                "until": self._parse_date(until_value) if until_value else None,
+                "until": self._parse_date(until_value, inclusive=True) if until_value else None,
             }
         except OAIProtocolError:
             raise OAIProtocolError("badResumptionToken", "The resumption token is invalid.")
@@ -217,8 +228,10 @@ class OAIProtocolServer:
             if prefix != OAI_PREFIX or prefix not in self.config.get("metadata_prefixes", []):
                 raise OAIProtocolError("cannotDisseminateFormat", "The metadata format is not supported.")
             offset = 0
-            from_value = self._parse_date(params["from"]) if params.get("from") else None
-            until_value = self._parse_date(params["until"]) if params.get("until") else None
+            if "from" in params and "until" in params and len(params["from"]) != len(params["until"]):
+                raise OAIProtocolError("badArgument", "The from and until arguments have different granularities.")
+            from_value = self._parse_date(params["from"]) if "from" in params else None
+            until_value = self._parse_date(params["until"], inclusive=True) if "until" in params else None
             if from_value and until_value and from_value > until_value:
                 raise OAIProtocolError("badArgument", "The from datestamp is later than until.")
             if params.get("set"):
@@ -256,11 +269,13 @@ class OAIProtocolServer:
 
         container = etree.SubElement(root, _Q(verb))
         for index, item in enumerate(page):
-            header = self._append_header(container, item)
+            header = self._append_header(container, item, with_record=verb == "ListRecords")
             if verb == "ListRecords" and not item.get("record", {}).get("deleted"):
                 record = header.getparent()
                 metadata = etree.SubElement(record, _Q("metadata"))
-                metadata.append(metadata_pages[index])
+                metadata_xml = metadata_pages[index]
+                if metadata_xml is not None:
+                    metadata.append(metadata_xml)
         token_node = etree.SubElement(
             container,
             _Q("resumptionToken"),
@@ -280,21 +295,23 @@ class OAIProtocolServer:
         if item is None:
             raise OAIProtocolError("idDoesNotExist", "The identifier does not exist.")
         metadata_node = None
-        if not item.get("record", {}).get("deleted"):
+        deleted = item.get("record", {}).get("deleted")
+        if not deleted:
             metadata_node = self._metadata_xml(item)
         container = etree.SubElement(root, _Q("GetRecord"))
         header = self._append_header(container, item)
-        if metadata_node is not None:
+        if not deleted:
             record = header.getparent()
             metadata = etree.SubElement(record, _Q("metadata"))
-            metadata.append(metadata_node)
+            if metadata_node is not None:
+                metadata.append(metadata_node)
 
     def _get_provider_record(self, identifier):
         lookup = getattr(self.provider, "get_oai_record", None)
         return lookup(identifier) if lookup else None
 
-    def _append_header(self, parent, item):
-        record = etree.SubElement(parent, _Q("record"))
+    def _append_header(self, parent, item, with_record=True):
+        record = etree.SubElement(parent, _Q("record")) if with_record else parent
         payload = item.get("record", item)
         header_attrs = {"status": "deleted"} if payload.get("deleted") else {}
         header = etree.SubElement(record, _Q("header"), **header_attrs)
@@ -312,8 +329,22 @@ class OAIProtocolServer:
         if isinstance(metadata, str):
             metadata = metadata.encode("utf-8")
         if not metadata:
-            raise OAIProtocolError("unknownError", "The record has no metadata XML.")
+            # Match the legacy OAI endpoint: records remain listable even when
+            # no LexML publisher is configured, with an empty metadata element.
+            return None
         try:
-            return etree.fromstring(metadata)
+            return OAIProtocolServer._parse_xml(metadata)
         except (TypeError, ValueError, etree.XMLSyntaxError):
-            raise OAIProtocolError("unknownError", "The record metadata is invalid XML.")
+            raise OAIServiceError("The record metadata is invalid XML.")
+
+    @staticmethod
+    def _parse_xml(value):
+        if isinstance(value, str):
+            value = value.encode("utf-8")
+        parser = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
+        node = etree.fromstring(value, parser=parser)
+        # OAI replies must be standalone XML and cannot depend on a DTD or
+        # unresolved entity declarations carried by stored provider metadata.
+        if node.getroottree().docinfo.doctype or any(isinstance(item, etree._Entity) for item in node.iter()):
+            raise OAIServiceError("DTD and entity declarations are not supported in OAI XML.")
+        return node

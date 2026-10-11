@@ -3,9 +3,25 @@ import re
 from django import forms
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.schemas.openapi import AutoSchema
+from rest_framework.authentication import TokenAuthentication, SessionAuthentication
+from rest_framework.permissions import AllowAny
 
 
 class Schema(AutoSchema):
+    def get_operation(self, path, method):
+        operation = super().get_operation(path, method)
+        security = []
+        for auth in self.view.authentication_classes:
+            if issubclass(auth, TokenAuthentication):
+                security.append({'tokenAuth': []})
+            elif issubclass(auth, SessionAuthentication):
+                security.append({'cookieAuth': []})
+        if any(issubclass(permission, AllowAny) for permission in self.view.permission_classes):
+            security.append({})
+        if security:
+            operation['security'] = security
+        return operation
+
     def get_component_name(self, serializer):
         model = getattr(getattr(serializer, 'Meta', None), 'model', None)
         name = super().get_component_name(serializer)

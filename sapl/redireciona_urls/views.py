@@ -4,7 +4,7 @@ from django.urls import NoReverseMatch, reverse
 from django.views.generic import RedirectView
 
 from sapl.audiencia.apps import AppConfig as audienciaConfig
-from sapl.base.apps import AppConfig as atasConfig
+from sapl.relatorios.apps import AppConfig as relatoriosConfig
 from sapl.comissoes.apps import AppConfig as comissoesConfig
 from sapl.materia.apps import AppConfig as materiaConfig
 from sapl.norma.apps import AppConfig as normaConfig
@@ -15,10 +15,10 @@ from .exceptions import UnknownUrlNameError
 
 EMPTY_STRING = ''
 
-presenca_sessaoConfig = relatoriosConfig = atasConfig
+presenca_sessaoConfig = relatoriosConfig
 
 app_parlamentares = parlamentaresConfig.name
-app_atas = atasConfig.name
+app_atas = relatoriosConfig.name
 app_presenca_sessao = presenca_sessaoConfig.name
 app_comissoes = comissoesConfig.name
 app_materia = materiaConfig.name

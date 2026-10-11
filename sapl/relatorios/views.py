@@ -265,7 +265,7 @@ def get_capa_processo(prot):
             for numera in Numeracao.objects.filter(materia=materia_num):
                 # FIXME i18n
                 dic['numeracao'] = 'PROCESSO N&#176; ' + \
-                                   str(numera.numero) + '/' + str(numera.ano)
+                                   str(numera.numero_materia) + '/' + str(numera.ano_materia)
         dic['anulado'] = ''
         if p.anulado == 1:
             dic['anulado'] = 'Nulo'

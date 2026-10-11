@@ -2,6 +2,7 @@ from datetime import datetime
 import logging
 import re
 
+from sapl.modern_components.timezones import localize_legacy
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
@@ -330,7 +331,7 @@ class NormaCrud(Crud):
             initial['ip'] = get_client_ip(self.request)
 
             tz = timezone.get_current_timezone()
-            initial['ultima_edicao'] = tz.localize(datetime.now())
+            initial['ultima_edicao'] = localize_legacy(datetime.now(), tz)
 
             username = self.request.user.username
             try:
@@ -437,7 +438,7 @@ class NormaCrud(Crud):
                     self.object.ip = get_client_ip(self.request)
 
                     tz = timezone.get_current_timezone()
-                    self.object.ultima_edicao = tz.localize(datetime.now())
+                    self.object.ultima_edicao = localize_legacy(datetime.now(), tz)
 
                     self.object.save()
                     break
@@ -450,7 +451,7 @@ class NormaCrud(Crud):
                 self.object.ip = get_client_ip(self.request)
 
                 tz = timezone.get_current_timezone()
-                self.object.ultima_edicao = tz.localize(datetime.now())
+                self.object.ultima_edicao = localize_legacy(datetime.now(), tz)
 
                 self.object.save()
 

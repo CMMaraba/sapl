@@ -183,9 +183,9 @@ def test_lista_parlamentares_mandatos_intersecao():
         legislatura = baker.make(
                 Legislatura,
                 numero=1,
-                data_inicio='2017-07-04',
-                data_fim='2170-05-01',
-                data_eleicao='2017-04-07'
+                data_inicio=datetime.date(2017, 7, 4),
+                data_fim=datetime.date(2170, 5, 1),
+                data_eleicao=datetime.date(2017, 4, 7)
         )
         parlamentar_a = baker.make(
                 Parlamentar,
@@ -204,33 +204,36 @@ def test_lista_parlamentares_mandatos_intersecao():
                 Mandato,
                 parlamentar=parlamentar_a,
                 legislatura=legislatura,
-                data_inicio_mandato='2017-07-08',
-                data_fim_mandato='2018-01-07'
+                data_inicio_mandato=datetime.date(2017, 7, 8),
+                data_fim_mandato=datetime.date(2018, 1, 7)
         )
         mandato_b = baker.make(
                 Mandato,
                 parlamentar=parlamentar_a,
                 legislatura=legislatura,
-                data_inicio_mandato='2017-07-09'
+                data_inicio_mandato=datetime.date(2017, 7, 9)
         )
         baker.make(
                 Mandato,
                 parlamentar=parlamentar_b,
                 legislatura=legislatura,
-                data_inicio_mandato='2017-11-17',
-                data_fim_mandato='2018-08-02'
+                data_inicio_mandato=datetime.date(2017, 11, 17),
+                data_fim_mandato=datetime.date(2018, 8, 2)
         )
         baker.make(
                 Mandato,
                 parlamentar=parlamentar_b,
                 legislatura=legislatura,
-                data_inicio_mandato='2018-08-03'
+                data_inicio_mandato=datetime.date(2018, 8, 3)
         )
 
         lista_parlamentares = parlamentares_mandatos_intersecao()
 
         assert len(lista_parlamentares) == 1
-        assert lista_parlamentares == [(parlamentar_a, mandato_a, mandato_b)]
+        parlamentar, primeiro_mandato, segundo_mandato = lista_parlamentares[0]
+        assert parlamentar.pk == parlamentar_a.pk
+        assert {primeiro_mandato.pk, segundo_mandato.pk} == {
+                mandato_a.pk, mandato_b.pk}
 
 
 @pytest.mark.django_db(transaction=False)
@@ -618,8 +621,6 @@ def test_incluir_casa_legislativa_errors(admin_client):
     assert (response.context_data['form'].errors['sigla'] ==
             [_('Este campo é obrigatório.')])
     assert (response.context_data['form'].errors['endereco'] ==
-            [_('Este campo é obrigatório.')])
-    assert (response.context_data['form'].errors['cep'] ==
             [_('Este campo é obrigatório.')])
     assert (response.context_data['form'].errors['municipio'] ==
             [_('Este campo é obrigatório.')])

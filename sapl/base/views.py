@@ -228,8 +228,8 @@ class AutorCrud(CrudAux):
                     kwargs['uidb64'] = urlsafe_base64_encode(
                         force_bytes(user.pk))
                     assunto = "SAPL - Confirmação de Conta"
-                    full_url = self.request.get_raw_uri()
-                    url_base = full_url[:full_url.find('sistema') - 1]
+                    confirmation_url = self.request.build_absolute_uri(
+                        reverse('sapl.base:confirmar_email', kwargs=kwargs))
 
                     mensagem = (
                             "Este e-mail foi utilizado para fazer cadastro no " +
@@ -239,8 +239,7 @@ class AutorCrud(CrudAux):
                             self.request.POST['username'] + "\n"
                                                             "Caso você não tenha feito este cadastro, por favor " +
                             "ignore esta mensagem. Caso tenha, clique " +
-                            "no link abaixo\n" + url_base +
-                            reverse('sapl.base:confirmar_email', kwargs=kwargs))
+                            "no link abaixo\n" + confirmation_url)
                     remetente = settings.EMAIL_SEND_USER
                     destinatario = [user.email]
                     send_mail(assunto, mensagem, remetente, destinatario,

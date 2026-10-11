@@ -48,6 +48,7 @@ if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = config('EMAIL_BACKEND', default=EMAIL_BACKEND)
 
 # SAPL business apps in dependency order
 SAPL_APPS = (
@@ -103,8 +104,8 @@ INSTALLED_APPS = (
 # Desabilita a indexação textual até encontramos uma solução para a issue
 # https://github.com/interlegis/sapl/issues/2055
 HAYSTACK_SIGNAL_PROCESSOR = 'haystack.signals.BaseSignalProcessor'  # Disable auto index
-SEARCH_BACKEND = ''
-SEARCH_URL = ['', '']
+SEARCH_BACKEND = 'haystack.backends.simple_backend.SimpleEngine'
+SEARCH_URL = ['URL', '']
 
 # SOLR
 USE_SOLR = config('USE_SOLR', cast=bool, default=False)
@@ -200,9 +201,9 @@ SPECTACULAR_SETTINGS = {
 
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-        'LOCATION': '/var/tmp/django_cache',
-        'OPTIONS': {"MAX_ENTRIES": 10000},
+        # django-ratelimit requires an atomic cache shared by workers.
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': config('REDIS_CACHE_URL', default='redis://127.0.0.1:6379/1'),
     }
 }
 
@@ -245,6 +246,10 @@ WSGI_APPLICATION = 'sapl.wsgi.application'
 DATABASES = {
     "default": config("DATABASE_URL", cast=db_url)
 }
+
+# The real SAPL database is UTF8; cluster templates may still be SQL_ASCII.
+# Use a clean template and the same encoding for Django's temporary test DB.
+DATABASES['default']['TEST'] = {'TEMPLATE': 'template0', 'CHARSET': 'UTF8'}
 
 
 def setup_db_tz():
@@ -378,6 +383,12 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 CRISPY_ALLOWED_TEMPLATE_PACKS = ('bootstrap4',)
+# Preserve CSS aliases used by the SAPL frontend before Crispy 2.
+CRISPY_CLASS_CONVERTERS = {
+    'textinput': 'textinput textInput',
+    'fileinput': 'fileinput fileUpload',
+    'passwordinput': 'textinput textInput',
+}
 CRISPY_FAIL_SILENTLY = not DEBUG
 
 # suprime texto de ajuda default do django-filter
@@ -454,14 +465,10 @@ PASSWORD_HASHERS = [
 
 LOGOUT_REDIRECT_URL = '/login'
 
-# Native runtime and isolated experimental CT.
+# Keep existing primary keys when using the native Django runtime.
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
-EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
-ALLOWED_HOSTS = ["10.3.150.110", "localhost", "127.0.0.1", "testserver", "sapl-modern-test"]
-CACHES = {"default": {"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": "redis://127.0.0.1:6379/1"}}
-USE_SOLR = False
-HAYSTACK_SIGNAL_PROCESSOR = "haystack.signals.BaseSignalProcessor"
-HAYSTACK_CONNECTIONS = {"default": {"ENGINE": "haystack.backends.simple_backend.SimpleEngine"}}
 
 # Native replacement for the legacy image-cropping template library.
 TEMPLATES[0]['OPTIONS'].setdefault('libraries', {})['cropping'] = 'sapl.modern_components.templatetags.cropping'
+TEMPLATES[0]['OPTIONS']['libraries']['admin_static'] = 'django.templatetags.static'
+TEMPLATES[0]['OPTIONS']['libraries']['bootstrapped_goodies_tags'] = 'sapl.modern_components.templatetags.admin_compat'

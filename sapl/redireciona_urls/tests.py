@@ -510,7 +510,7 @@ class RedirecionaHistoricoTramitacoesListTests(TestCase):
         args_e = EMPTY_STRING
         args = EMPTY_STRING
         url = reverse(self.url_pattern)
-        url_e = reverse('sapl.base:historico_tramitacoes')
+        url_e = reverse('sapl.relatorios:historico_tramitacoes')
 
         inicio_dt_tramitacao = EMPTY_STRING
         fim_dt_tramitacao = EMPTY_STRING
@@ -559,7 +559,7 @@ class RedirecionaHistoricoTramitacoesListTests(TestCase):
         args = EMPTY_STRING
         args_e = EMPTY_STRING
         url = reverse(self.url_pattern)
-        url_e = reverse('sapl.base:historico_tramitacoes')
+        url_e = reverse('sapl.relatorios:historico_tramitacoes')
 
         inicio_dt_tramitacao = '12/07/2000'
         fim_dt_tramitacao = '26/05/2017'
@@ -612,7 +612,7 @@ class RedirecionaPresencaParlamentaresTests(TestCase):
         args_e = EMPTY_STRING
         args = EMPTY_STRING
         url = reverse(self.url_pattern)
-        url_e = reverse('sapl.base:presenca_sessao')
+        url_e = reverse('sapl.relatorios:presenca_sessao')
 
         inicio_intervalo_presenca = EMPTY_STRING
         fim_intervalo_presenca = EMPTY_STRING
@@ -643,7 +643,7 @@ class RedirecionaPresencaParlamentaresTests(TestCase):
         args_e = EMPTY_STRING
         args = EMPTY_STRING
         url = reverse(self.url_pattern)
-        url_e = reverse('sapl.base:presenca_sessao')
+        url_e = reverse('sapl.relatorios:presenca_sessao')
 
         inicio_intervalo_presenca = '01/02/2015'
         fim_intervalo_presenca = '01/02/2017'
@@ -676,7 +676,7 @@ class RedirecionaMateriasPorAutorTests(TestCase):
 
     def test_redireciona_materias_por_autor_list_sem_parametros(self):
         url = reverse(self.url_pattern)
-        url_e = reverse('sapl.base:materia_por_autor')
+        url_e = reverse('sapl.relatorios:materia_por_autor')
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, MovedPermanentlyHTTPStatusCode)
@@ -689,7 +689,7 @@ class RedirecionaMateriasPorAnoAutorTipoTests(TestCase):
 
     def test_redireciona_materias_por_ano_autor_tipo_list_sem_parametros(self):
         url = reverse(self.url_pattern)
-        url_e = reverse('sapl.base:materia_por_ano_autor_tipo')
+        url_e = reverse('sapl.relatorios:materia_por_ano_autor_tipo')
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, MovedPermanentlyHTTPStatusCode)
@@ -697,7 +697,7 @@ class RedirecionaMateriasPorAnoAutorTipoTests(TestCase):
 
     def test_redireciona_materias_por_ano_autor_tipo_list(self):
         url = reverse(self.url_pattern)
-        url_e = reverse('sapl.base:materia_por_ano_autor_tipo')
+        url_e = reverse('sapl.relatorios:materia_por_ano_autor_tipo')
 
         ano = 2017
 

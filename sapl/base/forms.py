@@ -599,17 +599,15 @@ class AutorForm(ModelForm):
 
         super(AutorForm, self).__init__(*args, **kwargs)
 
-        self.fields['operadores'].choices = [
-            (
-                u.id,
-                u.username,
-                u
-            )
-            for u in get_user_model().objects.filter(
+        operadores_vinculados = (
+            get_user_model().objects.filter(
                 operadorautor_set__autor=self.instance
-            ).order_by('-is_active',
-                       get_user_model().USERNAME_FIELD
-                       ) if self.instance.id
+            ).order_by('-is_active', get_user_model().USERNAME_FIELD)
+            if self.instance.pk else ()
+        )
+        self.fields['operadores'].choices = [
+            (u.id, u.username, u)
+            for u in operadores_vinculados
         ] + [
             (
                 u.id,

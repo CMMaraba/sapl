@@ -7,3 +7,4 @@
 .sapl-crop-help { margin: .25rem 0; color: #555; font-size: .9em; }
 .sapl-crop-fullsize { display: block; margin: .25rem 0; }
 .sapl-crop-value { max-width: 24rem; }
+.sapl-crop-stage.size-warning .sapl-crop-selection { border-color: #c62828; background: rgba(198,40,40,.15); }

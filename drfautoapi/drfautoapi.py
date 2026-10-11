@@ -155,7 +155,11 @@ class ApiFilterSetMixin(FilterSet):
                     r = []
                     for lk, lv in cl.items():
 
-                        if lk in ('contained_by', 'trigram_similar', 'unaccent', 'search'):
+                        # Preserve production's filter contract. New trigram lookups
+                        # require pg_trgm, which the SAPL database does not install.
+                        if lk in ('contained_by', 'trigram_similar', 'trigram_word_similar',
+                                  'trigram_strict_word_similar', 'iso_week_day',
+                                  'unaccent', 'search'):
                             continue
 
                         sflk = f'{sub_f}{"__" if sub_f else ""}{lk}'

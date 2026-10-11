@@ -548,6 +548,7 @@ def test_form_errors_relatoria(admin_client):
 
 @pytest.mark.django_db(transaction=False)
 def test_proposicao_submit(admin_client):
+    baker.make(AppConfig)
     tipo_autor = baker.make(TipoAutor, descricao='Teste Tipo_Autor')
     user = get_user_model().objects.filter(is_active=True)[0]
 
@@ -593,6 +594,7 @@ def test_proposicao_submit(admin_client):
 
 @pytest.mark.django_db(transaction=False)
 def test_form_errors_proposicao(admin_client):
+    baker.make(AppConfig)
     tipo_autor = baker.make(TipoAutor, descricao='Teste Tipo_Autor')
 
     user = get_user_model().objects.filter(is_active=True)[0]

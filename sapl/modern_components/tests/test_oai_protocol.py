@@ -1,3 +1,5 @@
+import base64
+import json
 import unittest
 from datetime import datetime, timezone
 
@@ -7,6 +9,7 @@ from sapl.modern_components.oai_protocol import (
     LEXML_NS,
     OAI_NS,
     OAIProtocolServer,
+    OAIServiceError,
 )
 
 
@@ -77,6 +80,18 @@ class OAIProtocolTests(unittest.TestCase):
         self.assertEqual(node.findtext(q("granularity")), "YYYY-MM-DDThh:mm:ssZ")
         self.assertEqual(node.findtext(q("adminEmail")), "oai@example.invalid")
 
+    def test_identifiers_have_direct_headers_including_deleted_records(self):
+        rows = sample_records(2)
+        rows[1]["record"]["deleted"] = True
+        self.server = OAIProtocolServer(FakeProvider(rows))
+        root = self.parse({"verb": "ListIdentifiers", "metadataPrefix": "oai_lexml"})
+        node = root.find(q("ListIdentifiers"))
+        headers = node.findall(q("header"))
+        self.assertEqual(len(headers), 2)
+        self.assertEqual(headers[1].get("status"), "deleted")
+        self.assertEqual(node.findall(q("record")), [])
+        self.assertEqual(node.findall(q("metadata")), [])
+
     def test_list_metadata_formats(self):
         root = self.parse({"verb": "ListMetadataFormats"})
         self.assertEqual(root.findtext(".//" + q("metadataPrefix")), "oai_lexml")
@@ -125,16 +140,126 @@ class OAIProtocolTests(unittest.TestCase):
         root = self.parse({"verb": ["Identify", "ListRecords"]})
         self.assertEqual(root.find(q("error")).get("code"), "badArgument")
 
+    def test_malformed_metadata_is_a_service_failure(self):
+        provider = FakeProvider([{
+            "record": {"id": "broken-metadata", "deleted": 0},
+            "metadata": b"<LexML>",
+        }])
+        with self.assertRaises(OAIServiceError):
+            OAIProtocolServer(provider).handleRequest({
+                "verb": "ListRecords", "metadataPrefix": "oai_lexml"
+            })
+
+    def test_malformed_description_is_a_service_failure(self):
+        self.server.config["descricao"] = "<broken>"
+        with self.assertRaises(OAIServiceError):
+            self.server.handleRequest({"verb": "Identify"})
+
+    def test_dtd_and_entities_are_rejected_without_expansion(self):
+        values = [
+            '<!DOCTYPE x [<!ENTITY e "internal">]><x>&e;</x>',
+            '<!DOCTYPE x [<!ENTITY e SYSTEM "file:///dev/null">]><x>&e;</x>',
+            '<!DOCTYPE x SYSTEM "https://example.invalid/external.dtd"><x/>',
+        ]
+        for value in values:
+            with self.subTest(value=value):
+                self.server.config["descricao"] = value
+                with self.assertRaises(OAIServiceError):
+                    self.server.handleRequest({"verb": "Identify"})
+                provider = FakeProvider([{
+                    "record": {"id": "entity-metadata", "deleted": 0},
+                    "metadata": value,
+                }])
+                with self.assertRaises(OAIServiceError):
+                    OAIProtocolServer(provider).handleRequest({
+                        "verb": "ListRecords", "metadataPrefix": "oai_lexml"
+                    })
+
+    def test_invalid_xml_arguments_return_clean_protocol_errors(self):
+        cases = [
+            {"verb": "Identify", "invalid name": "value"},
+            {"verb": "Identify", "identifier": "nul\x00value"},
+            {"verb": "Identify", "identifier": "surrogate\ud800"},
+            {"verb": "unknown"},
+            {"verb": "ListRecords", "metadataPrefix": "oai_lexml", "from": ""},
+            {"verb": "ListRecords", "metadataPrefix": "oai_lexml", "until": ""},
+        ]
+        for params in cases:
+            with self.subTest(params=params):
+                root = self.parse(params)
+                self.assertEqual(root.find(q("request")).attrib, {})
+                self.assertEqual([etree.QName(node).localname for node in root],
+                                 ["responseDate", "request", "error"])
+                self.assertIn(root.find(q("error")).get("code"), ("badArgument", "badVerb"))
+
+    def test_mixed_datestamp_granularity_is_rejected(self):
+        for from_value, until_value in [
+            ("2024-03-01", "2024-03-02T00:00:00Z"),
+            ("2024-03-01T00:00:00Z", "2024-03-02"),
+        ]:
+            root = self.parse({
+                "verb": "ListRecords", "metadataPrefix": "oai_lexml",
+                "from": from_value, "until": until_value,
+            })
+            self.assertEqual(root.find(q("error")).get("code"), "badArgument")
+            self.assertIsNone(root.find(q("ListRecords")))
+
+    def test_until_date_includes_the_whole_day_across_pages(self):
+        rows = sample_records(4)
+        for row, timestamp in zip(rows, [
+            datetime(2024, 3, 1, 0, 0, 0), datetime(2024, 3, 1, 12, 0, 0),
+            datetime(2024, 3, 1, 23, 59, 59), datetime(2024, 3, 2, 0, 0, 0),
+        ]):
+            row["record"]["when_modified"] = timestamp
+
+        class FilteringProvider(FakeProvider):
+            def __init__(self, records):
+                super().__init__(records, batch_size=1)
+                self.bounds = []
+
+            def oai_query(self, offset=0, batch_size=10, from_=None, until=None, identifier=None):
+                self.bounds.append((from_, until))
+                selected = [row for row in self.records if
+                            (from_ is None or row["record"]["when_modified"] >= from_) and
+                            (until is None or row["record"]["when_modified"] <= until)]
+                return selected[offset:offset + batch_size]
+
+        provider = FilteringProvider(rows)
+        server = OAIProtocolServer(provider)
+        params = {"verb": "ListRecords", "metadataPrefix": "oai_lexml",
+                  "from": "2024-03-01", "until": "2024-03-01"}
+        identifiers = []
+        while True:
+            root = etree.fromstring(server.handleRequest(params))
+            self.assertIsNone(root.find(q("error")))
+            identifiers.extend(node.text for node in root.findall(".//" + q("identifier")))
+            token = root.findtext(".//" + q("resumptionToken"))
+            if not token:
+                break
+            params = {"verb": "ListRecords", "resumptionToken": token}
+        self.assertEqual(len(identifiers), 3)
+        self.assertEqual(provider.bounds, [(datetime(2024, 3, 1), datetime(2024, 3, 1, 23, 59, 59))] * 3)
+
+    def test_non_object_and_malformed_tokens_are_bad_resumption_tokens(self):
+        for payload in ([], None, "text", 42, {}, {"v": 1, "offset": True}):
+            token = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+            root = self.parse({"verb": "ListIdentifiers", "resumptionToken": token})
+            self.assertEqual(root.find(q("error")).get("code"), "badResumptionToken")
+            self.assertIsNone(root.find(q("ListIdentifiers")))
+
     def test_missing_metadata_returns_only_protocol_error(self):
         provider = FakeProvider([{"record": {"id": "missing-metadata", "deleted": 0}}])
         server = OAIProtocolServer(provider)
         root = etree.fromstring(server.handleRequest({
             "verb": "ListRecords", "metadataPrefix": "oai_lexml"
         }))
-        self.assertEqual(root.find(q("error")).get("code"), "unknownError")
-        self.assertIsNone(root.find(q("ListRecords")))
+        self.assertIsNone(root.find(q("error")))
+        records = root.findall(".//" + q("record"))
+        self.assertEqual(len(records), 1)
+        self.assertIsNotNone(records[0].find(q("metadata")))
+        self.assertEqual(len(records[0].find(q("metadata"))), 0)
 
-    def test_get_record_missing_metadata_returns_only_protocol_error(self):
+    def test_get_record_missing_metadata_returns_empty_metadata_element(self):
         provider = FakeProvider([{"record": {"id": "missing-metadata", "deleted": 0}}])
         server = OAIProtocolServer(provider)
         root = etree.fromstring(server.handleRequest({
@@ -142,8 +267,11 @@ class OAIProtocolTests(unittest.TestCase):
             "identifier": "oai:missing-metadata",
             "metadataPrefix": "oai_lexml",
         }))
-        self.assertEqual(root.find(q("error")).get("code"), "unknownError")
-        self.assertIsNone(root.find(q("GetRecord")))
+        self.assertIsNone(root.find(q("error")))
+        records = root.findall(".//" + q("record"))
+        self.assertEqual(len(records), 1)
+        self.assertIsNotNone(records[0].find(q("metadata")))
+        self.assertEqual(len(records[0].find(q("metadata"))), 0)
 
 
 if __name__ == "__main__":

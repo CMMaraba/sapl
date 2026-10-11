@@ -22,6 +22,13 @@ class SaplSerializerMixin(DrfAutoApiSerializerMixin):
     class Meta(DrfAutoApiSerializerMixin.Meta):
         fields = '__all__'
 
+    def get___str__(self, obj) -> str:
+        # Django 5 prefixes ContentType labels with the application name.
+        # Keep the public SAPL representation used by existing API clients.
+        if isinstance(obj, ContentType):
+            return str(obj.name)
+        return super().get___str__(obj)
+
     def get_metadata(self, obj) -> dict:
         try:
             metadata = Metadata.objects.get(

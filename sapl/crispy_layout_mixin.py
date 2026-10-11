@@ -56,6 +56,8 @@ def form_actions(more=[Div(css_class='clearfix')],
 
 class SaplFormHelper(FormHelper):
     render_hidden_fields = True  # default = False
+    use_custom_control = False
+    label_class = 'col-form-label'
     """
     até a release 1.6.1 do django-crispy-forms, os fields em Meta.Fields eram
     renderizados mesmo se não mencionados no helper.
@@ -214,19 +216,18 @@ class CrispyLayoutFormMixin:
                     for fieldname, span in row]
 
     def get_form(self, form_class=None):
-        try:
-            form = super(CrispyLayoutFormMixin, self).get_form(form_class)
-        except AttributeError:
-            # simply return None if there is no get_form on super
-            pass
-        else:
-            if self.layout_key:
-                form.helper = SaplFormHelper()
-                layout = self.get_layout()
+        parent_get_form = getattr(
+            super(CrispyLayoutFormMixin, self), 'get_form', None)
+        if parent_get_form is None:
+            return None
 
-                form.helper.layout = SaplFormLayout(*layout)
+        form = parent_get_form(form_class)
+        if self.layout_key:
+            form.helper = SaplFormHelper()
+            layout = self.get_layout()
+            form.helper.layout = SaplFormLayout(*layout)
 
-            return form
+        return form
 
     @property
     def list_field_names(self):

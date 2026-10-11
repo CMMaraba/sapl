@@ -42,3 +42,4 @@ python3-redis
 
 # Test validation packages
 python3-django-webtest
+python3-model-bakery

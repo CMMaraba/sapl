@@ -934,9 +934,15 @@ class CrudDeleteView(PermissionRequiredContainerCrudMixin,
     def get_success_url(self):
         return self.list_url
 
+    def form_valid(self, form):
+        # Django 2.2 routed DeleteView POST through delete(). Django 4.0+
+        # deletes directly in BaseDeleteView.form_valid(), bypassing this
+        # ProtectedError handler and custom subclass cascade/cleanup handlers.
+        return self.delete(self.request, *self.args, **self.kwargs)
+
     def delete(self, request, *args, **kwargs):
         try:
-            return super(CrudDeleteView, self).delete(request, args, kwargs)
+            return super(CrudDeleteView, self).delete(request, *args, **kwargs)
         except models.ProtectedError as err:
             error_msg = 'Registro não pode ser removido, pois\
                          é referenciado por outros registros:<br>\

@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from sapl.modern_components.timezones import localize_legacy
 from django.contrib.auth.models import Group
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
@@ -344,12 +345,12 @@ class MateriaLegislativa(models.Model):
                     return protocolo.timestamp
                 elif protocolo.timestamp_data_hora_manual:
                     tz = timezone.localtime().tzinfo
-                    return tz.localize(
+                    return localize_legacy(
                         datetime.combine(
                             protocolo.data,
                             protocolo.hora
                         )
-                    )
+                    , tz)
                 elif protocolo.data:
                     return protocolo.data
 

@@ -1,3 +1,9 @@
+.. note::
+
+   Na branch ``modern``, usar os pacotes APT e as instruções de
+   ``docs/modern-system-runtime.md``. Os passos pip/virtualenv abaixo
+   documentam o ambiente legado e não reproduzem o runtime moderno.
+
 Instalação do Ambiente de Desenvolvimento
 =========================================
 

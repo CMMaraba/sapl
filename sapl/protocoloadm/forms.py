@@ -807,10 +807,10 @@ def compara_tramitacoes_doc(tramitacao1, tramitacao2):
         return False
 
     lst_items = ['id', 'documento_id', 'timestamp', 'ultima_edicao']
-    values = [(k, v) for k, v in tramitacao1.__dict__.items()
-              if ((k not in lst_items) and (k[0] != '_'))]
-    other_values = [(k, v) for k, v in tramitacao2.__dict__.items()
-                    if (k not in lst_items and k[0] != '_')]
+    values = {k: v for k, v in tramitacao1.__dict__.items()
+              if k not in lst_items and not k.startswith('_')}
+    other_values = {k: v for k, v in tramitacao2.__dict__.items()
+                    if k not in lst_items and not k.startswith('_')}
     return values == other_values
 
 

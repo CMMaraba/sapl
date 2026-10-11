@@ -151,7 +151,7 @@ class ImageRatioField(models.CharField):
         self.allow_fullsize = bool(allow_fullsize)
         self.size_warning = bool(_setting("IMAGE_CROPPING_SIZE_WARNING", True) if size_warning is None else size_warning)
         self.hide_image_field = bool(hide_image_field)
-        thumb_size = _setting("IMAGE_CROPPING_THUMB_SIZE", (256, 256))
+        thumb_size = _setting("IMAGE_CROPPING_THUMB_SIZE", (300, 300))
         self.box_max_width, self.box_max_height = thumb_size
         max_length = kwargs.pop("max_length", 255)
         default = kwargs.pop("default", "")

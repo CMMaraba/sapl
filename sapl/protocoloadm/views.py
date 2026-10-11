@@ -9,6 +9,7 @@ from string import ascii_letters, digits
 
 from pypdf import PdfWriter
 from braces.views import FormValidMessageMixin
+from sapl.modern_components.timezones import localize_legacy
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
@@ -441,7 +442,7 @@ class DocumentoAdministrativoCrud(Crud):
             initial['ip'] = get_client_ip(self.request)
 
             tz = timezone.get_current_timezone()
-            initial['ultima_edicao'] = tz.localize(datetime.now())
+            initial['ultima_edicao'] = localize_legacy(datetime.now(), tz)
 
             return initial
 
@@ -478,7 +479,7 @@ class DocumentoAdministrativoCrud(Crud):
                     self.object.ip = get_client_ip(self.request)
 
                     tz = timezone.get_current_timezone()
-                    self.object.ultima_edicao = tz.localize(datetime.now())
+                    self.object.ultima_edicao = localize_legacy(datetime.now(), tz)
 
                     self.object.save()
                     break
@@ -794,7 +795,7 @@ class CriarDocumentoProtocolo(PermissionRequiredMixin, CreateView):
         doc['ip'] = get_client_ip(self.request)
 
         tz = timezone.get_current_timezone()
-        doc['ultima_edicao'] = tz.localize(datetime.now())
+        doc['ultima_edicao'] = localize_legacy(datetime.now(), tz)
 
         return doc
 
@@ -990,7 +991,7 @@ class ProtocoloMateriaView(PermissionRequiredMixin, CreateView):
             materia.ip = get_client_ip(self.request)
 
             tz = timezone.get_current_timezone()
-            materia.ultima_edicao = tz.localize(datetime.now())
+            materia.ultima_edicao = localize_legacy(datetime.now(), tz)
 
             materia.save()
 
@@ -1337,7 +1338,7 @@ class TramitacaoAdmCrud(MasterDetailCrud):
             initial['user'] = self.request.user
 
             tz = timezone.get_current_timezone()
-            initial['ultima_edicao'] = tz.localize(datetime.now())
+            initial['ultima_edicao'] = localize_legacy(datetime.now(), tz)
 
             return initial
 
@@ -1386,7 +1387,7 @@ class TramitacaoAdmCrud(MasterDetailCrud):
             initial['user'] = self.request.user
 
             tz = timezone.get_current_timezone()
-            initial['ultima_edicao'] = tz.localize(datetime.now())
+            initial['ultima_edicao'] = localize_legacy(datetime.now(), tz)
 
             return initial
 
@@ -1528,7 +1529,7 @@ class DesvincularDocumentoView(PermissionRequiredMixin, CreateView):
         documento.ip = get_client_ip(self.request)
 
         tz = timezone.get_current_timezone()
-        documento.ultima_edicao = tz.localize(datetime.now())
+        documento.ultima_edicao = localize_legacy(datetime.now(), tz)
 
         documento.save()
         return redirect(self.get_success_url())
@@ -1556,7 +1557,7 @@ class DesvincularMateriaView(PermissionRequiredMixin, FormView):
         materia.ip = get_client_ip(self.request)
 
         tz = timezone.get_current_timezone()
-        materia.ultima_edicao = tz.localize(datetime.now())
+        materia.ultima_edicao = localize_legacy(datetime.now(), tz)
 
         materia.save()
         return redirect(self.get_success_url())
@@ -1709,7 +1710,7 @@ class PrimeiraTramitacaoEmLoteAdmView(PermissionRequiredMixin, FilterView):
         ip = get_client_ip(request)
 
         tz = timezone.get_current_timezone()
-        ultima_edicao = tz.localize(datetime.now())
+        ultima_edicao = localize_legacy(datetime.now(), tz)
 
         documentos_ids = request.POST.getlist('documentos')
         if not documentos_ids:

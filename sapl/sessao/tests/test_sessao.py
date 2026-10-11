@@ -70,10 +70,12 @@ def test_numero_duplicado_sessao_plenaria_form():
 
     assert not form.is_valid()
 
-    assert form.errors['__all__'] == ["Número de Sessão Plenária já existente "
-                                      "para a Legislatura, Sessão Legislativa "
-                                      "e Tipo informados. Favor escolher um "
-                                      "número distinto."]
+    assert form.errors['__all__'] == [
+        "Número de Sessão Plenária '1' já existente para o Tipo de Sessão "
+        + str(tipo) + " da " + str(sessao) + " Sessão Legislativa da "
+        + str(legislatura) + " Legislatura. Por Favor, escolha um número "
+        "distinto."
+    ]
 
 
 @pytest.mark.django_db(transaction=False)
@@ -210,19 +212,21 @@ def test_delete_sessao_plenaria_cascade_registro_votacao_ordemdia():
                                   votacao=registro,
                                   parlamentar=parlamentar,
                                   ordem=ordem)
+    sessao_plenaria_id = sessao_plenaria.pk
+    ordem_id = ordem.pk
     sessao_plenaria.delete()
     presenca_filter = PresencaOrdemDia.objects.filter(
-                        sessao_plenaria=sessao_plenaria).exists()
+                        sessao_plenaria_id=sessao_plenaria_id).exists()
     ordem_filter = OrdemDia.objects.filter(
-                        sessao_plenaria=sessao_plenaria).exists()
+                        sessao_plenaria_id=sessao_plenaria_id).exists()
     registro_filter = RegistroVotacao.objects.filter(
                         tipo_resultado_votacao=tipo_resultado_votacao,
                         materia=materia,
-                        ordem=ordem).exists()
+                        ordem_id=ordem_id).exists()
     materia_filter = MateriaLegislativa.objects.filter(id=materia.id).exists()
     parlamentar_filter = Parlamentar.objects.exists()
     voto_parlamentar_filter = VotoParlamentar.objects.filter(
-                                    ordem=ordem).exists()
+                                    ordem_id=ordem_id).exists()
     assert not registro_filter
     assert not ordem_filter
     assert not presenca_filter
@@ -252,18 +256,20 @@ def test_delete_sessao_plenaria_cascade_registro_votacao_expediente():
                                   votacao=registro,
                                   parlamentar=parlamentar,
                                   expediente=expediente)
+    sessao_plenaria_id = sessao_plenaria.pk
+    expediente_id = expediente.pk
     sessao_plenaria.delete()
     expediente_filter = ExpedienteMateria.objects.filter(
-                            sessao_plenaria=sessao_plenaria).exists()
+                            sessao_plenaria_id=sessao_plenaria_id).exists()
     registro_filter = RegistroVotacao.objects.filter(
                         tipo_resultado_votacao=tipo_resultado_votacao,
                         materia=materia,
-                        expediente=expediente).exists()
+                        expediente_id=expediente_id).exists()
     presenca_filter = SessaoPlenariaPresenca.objects.filter(
-                        sessao_plenaria=sessao_plenaria).exists()
+                        sessao_plenaria_id=sessao_plenaria_id).exists()
     parlamentar_filter = Parlamentar.objects.exists()
     voto_parlamentar_filter = VotoParlamentar.objects.filter(
-                                    expediente=expediente).exists()
+                                    expediente_id=expediente_id).exists()
     assert not registro_filter
     assert not expediente_filter
     assert not presenca_filter
@@ -275,22 +281,25 @@ def test_delete_sessao_plenaria_cascade_registro_votacao_expediente():
 def test_delete_sessao_plenaria_cascade_integrante_mesa():
     sessao_plenaria = create_sessao_plenaria()
     mesa = baker.make(IntegranteMesa,sessao_plenaria=sessao_plenaria)
+    sessao_plenaria_id = sessao_plenaria.pk
     sessao_plenaria.delete()
-    mesa_filter = IntegranteMesa.objects.filter(sessao_plenaria=sessao_plenaria).exists()
+    mesa_filter = IntegranteMesa.objects.filter(sessao_plenaria_id=sessao_plenaria_id).exists()
     assert not mesa_filter
 
 @pytest.mark.django_db(transaction=False)
 def test_delete_sessao_plenaria_cascade_expedientesessao():
     sessao_plenaria = create_sessao_plenaria()
     expediente_sessao = baker.make(ExpedienteSessao, sessao_plenaria=sessao_plenaria)
+    sessao_plenaria_id = sessao_plenaria.pk
     sessao_plenaria.delete()
-    expediente_sessao_filter = ExpedienteSessao.objects.filter(sessao_plenaria=sessao_plenaria).exists()
+    expediente_sessao_filter = ExpedienteSessao.objects.filter(sessao_plenaria_id=sessao_plenaria_id).exists()
     assert not expediente_sessao_filter
 
 @pytest.mark.django_db(transaction=False)
 def test_delete_sessao_plenaria_cascade_orador():
     sessao_plenaria = create_sessao_plenaria()
     expediente_sessao = baker.make(Orador, sessao_plenaria=sessao_plenaria)
+    sessao_plenaria_id = sessao_plenaria.pk
     sessao_plenaria.delete()
-    orador_filter = Orador.objects.filter(sessao_plenaria=sessao_plenaria).exists()
+    orador_filter = Orador.objects.filter(sessao_plenaria_id=sessao_plenaria_id).exists()
     assert not orador_filter

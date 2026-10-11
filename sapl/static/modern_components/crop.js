@@ -101,6 +101,7 @@
       var dims = dimensions();
       if (!box || !dims.rect.width || !dims.rect.height || !dims.width || !dims.height) {
         selection.hidden = true;
+        stage.classList.remove("size-warning");
         return;
       }
       var left = box[0] / dims.width * dims.rect.width;
@@ -112,6 +113,11 @@
       selection.style.width = Math.max(0, right - left) + "px";
       selection.style.height = Math.max(0, bottom - top) + "px";
       selection.hidden = false;
+      var minWidth = parseInt(ratioField.dataset.minWidth || "0", 10);
+      var minHeight = parseInt(ratioField.dataset.minHeight || "0", 10);
+      var tooSmall = ratioField.dataset.sizeWarning === "true" &&
+        (box[2] - box[0] < minWidth || box[3] - box[1] < minHeight);
+      stage.classList.toggle("size-warning", tooSmall);
     }
 
     function writeBox(box) {

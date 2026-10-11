@@ -1,5 +1,15 @@
 import pytest
+from django.test import override_settings
 from django_webtest import DjangoTestApp, WebTestMixin
+
+
+@pytest.fixture(autouse=True)
+def isolate_test_media_root(tmp_path):
+    """Keep test uploads out of the cloned application media."""
+    media_root = tmp_path / "media"
+    media_root.mkdir()
+    with override_settings(MEDIA_ROOT=str(media_root)):
+        yield
 
 
 class OurTestApp(DjangoTestApp):

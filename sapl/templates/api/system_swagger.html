@@ -3,5 +3,13 @@
 <link rel="stylesheet" href="{% static 'drf_spectacular_sidecar/swagger-ui-dist/swagger-ui.css' %}"></head>
 <body><div id="swagger-ui"></div>
 <script src="{% static 'drf_spectacular_sidecar/swagger-ui-dist/swagger-ui-bundle.js' %}"></script>
-<script>SwaggerUIBundle({url: "{{ schema_url|escapejs }}", dom_id: '#swagger-ui'});</script>
+<script>SwaggerUIBundle({
+  url: "{{ schema_url|escapejs }}",
+  dom_id: '#swagger-ui',
+  withCredentials: true,
+  requestInterceptor: function(request) {
+    request.headers['X-CSRFToken'] = "{{ csrf_token|escapejs }}";
+    return request;
+  }
+});</script>
 </body></html>

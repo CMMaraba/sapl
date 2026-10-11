@@ -1,3 +1,4 @@
+from django.db.models import Q
 
 from django.apps.registry import apps
 
@@ -98,5 +99,6 @@ class _AnexadoViewSet:
         qs = super().get_queryset()
 
         if self.request.user.is_anonymous:
-            qs = qs.exclude(documento__restrito=True)
+            qs = qs.exclude(Q(documento_principal__restrito=True) |
+                            Q(documento_anexado__restrito=True))
         return qs

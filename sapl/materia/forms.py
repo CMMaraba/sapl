@@ -605,10 +605,10 @@ def compara_tramitacoes_mat(tramitacao1, tramitacao2):
         return False
 
     lst_items = ['id', 'materia_id', 'timestamp']
-    values = [(k, v) for k, v in tramitacao1.__dict__.items()
-              if ((k not in lst_items) and (k[0] != '_'))]
-    other_values = [(k, v) for k, v in tramitacao2.__dict__.items()
-                    if (k not in lst_items and k[0] != '_')]
+    values = {k: v for k, v in tramitacao1.__dict__.items()
+              if k not in lst_items and not k.startswith('_')}
+    other_values = {k: v for k, v in tramitacao2.__dict__.items()
+                    if k not in lst_items and not k.startswith('_')}
     return values == other_values
 
 
@@ -1656,7 +1656,7 @@ class TipoProposicaoSelect(Select):
         option = super().create_option(name, value, label, selected,
                                        index, subindex=subindex, attrs=attrs)
         if value:
-            tipo = TipoProposicao.objects.get(id=value)
+            tipo = TipoProposicao.objects.get(id=getattr(value, "value", value))
             option['attrs']['data-has-perfil'] = str(tipo.perfis.exists())
 
         return option

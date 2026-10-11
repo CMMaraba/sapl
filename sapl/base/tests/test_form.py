@@ -14,11 +14,12 @@ def test_valida_campos_obrigatorios_casa_legislativa_form():
     assert errors['nome'] == [_('Este campo é obrigatório.')]
     assert errors['sigla'] == [_('Este campo é obrigatório.')]
     assert errors['endereco'] == [_('Este campo é obrigatório.')]
-    assert errors['cep'] == [_('Este campo é obrigatório.')]
+    assert not form.fields['cep'].required
+    assert form.cleaned_data['cep'] == ''
     assert errors['municipio'] == [_('Este campo é obrigatório.')]
     assert errors['uf'] == [_('Este campo é obrigatório.')]
 
-    assert len(errors) == 6
+    assert len(errors) == 5
 
 
 @pytest.mark.django_db(transaction=False)

@@ -17,7 +17,7 @@ class ListaUrls():
     def lista_urls(self, _urls):
         urls = []
         for item in _urls:
-            if isinstance(item, URLResolver) and \
+            if isinstance(item, URLResolver) and item.app_name and \
                     item.app_name.startswith('sapl'):
 
                 for key, value in item.reverse_dict.items():

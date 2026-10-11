@@ -251,6 +251,7 @@ apps_url_patterns_prefixs_and_users = {
     'relatorios': {
         'prefixs': [
             '/relatorios',
+            "/sistema/relatorios",
         ]},
     'sessao': {
         'users': {'operador_geral': ['/sistema', 'sessao'],

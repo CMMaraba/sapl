@@ -15,7 +15,6 @@ from time import time
 from unicodedata import normalize as unicodedata_normalize
 import unicodedata
 
-from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Button, HTML, Fieldset, Div
 from django import forms
 from django.apps import apps
@@ -1231,7 +1230,7 @@ class GoogleRecapthaMixin:
             ]
         )
 
-        self.helper = FormHelper()
+        self.helper = SaplFormHelper()
         self.helper.layout = SaplFormLayout(
             Fieldset(
                 title_label,
