@@ -55,16 +55,6 @@
 
                   <span class="navbar-menu-divider" aria-hidden="true">|</span>
                   <ul class="nav navbar-nav justify-content-end" id="autenticacao">
-                    <li class="nav-item dropdown pesquisa">
-                      <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="{% webpack_static 'img/search.png' %}"><span class="caret"></span></a>
-                        <ul class="dropdown-menu">
-                          <li class="dropdown-item">
-                            <form id="formulario-lexml" class="navbar-form search-form" method="get" action="">
-                              <input id="input-lexml" type="text" class="form-control" placeholder="Pesquisar no LexML" />
-                            </form>
-                          </li>
-                        </ul>
-                    </li>
                     <li class="nav-item"><a class="nav-link" href="/sistema/ajuda"><img src="{% webpack_static 'img/manual.png' %}"></a></li>
                     {% if not user.is_authenticated %}
                       <li class="nav-item"><a class="nav-link" href="{% url 'sapl.base:login' %}"><img src="{% webpack_static 'img/user.png' %}"></a></li>
@@ -285,13 +275,6 @@
             location.href = location.origin + '?iframe=0'
           }
 
-          var form = document.getElementById("formulario-lexml");
-          $("#input-lexml").change(function(){
-            let value = $("#input-lexml").val();
-            let url = "{% url 'sapl.lexml:lexml_search' 'xxx'%}"
-            url = url.replace('xxx', value)
-            form.action = url;
-          });
 
         });
       </script>
