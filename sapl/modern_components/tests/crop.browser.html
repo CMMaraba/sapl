@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Teste de navegador do recorte SAPL</title>
+  <link rel="stylesheet" href="../../static/modern_components/crop.css">
+  <style>
+    body { font: 16px sans-serif; margin: 24px; }
+    .sapl-crop-image { width: 500px; height: 400px; max-width: none; max-height: none; }
+    .case { margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+  <h1>Teste de navegador do recorte SAPL</h1>
+  <main id="cases"></main>
+  <script>
+    (function () {
+      "use strict";
+      var canvas = document.createElement("canvas");
+      canvas.width = 1000;
+      canvas.height = 800;
+      var context = canvas.getContext("2d");
+      context.fillStyle = "#ddd";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = "#2468ac";
+      context.fillRect(0, 0, 500, 400);
+      var sourceUrl = canvas.toDataURL("image/png");
+      var root = document.getElementById("cases");
+
+      function makeField(id, ratio) {
+        var form = document.createElement("form");
+        form.className = "case";
+        form.innerHTML = '<label>Imagem <input type="file" name="fotografia"></label>' +
+          '<label>Proporção <input class="image-ratio" name="cropping" value="" ' +
+          'data-image-field="fotografia" data-my-name="cropping" data-ratio="' + ratio + '"></label>';
+        var file = form.querySelector('input[type="file"]');
+        file.dataset.orgWidth = "1000";
+        file.dataset.orgHeight = "800";
+        file.dataset.imageUrl = sourceUrl;
+        form.dataset.caseId = id;
+        root.appendChild(form);
+        return form.querySelector("input.image-ratio");
+      }
+
+      function waitForImage(field) {
+        return new Promise(function (resolve, reject) {
+          var started = Date.now();
+          function check() {
+            var image = field.form.querySelector(".sapl-crop-image");
+            if (image && image.complete && image.naturalWidth) return resolve(image);
+            if (image && image.complete && !image.naturalWidth) return reject(new Error("Falha ao carregar PNG"));
+            if (Date.now() - started > 5000) return reject(new Error("A imagem não carregou"));
+            setTimeout(check, 20);
+          }
+          check();
+        });
+      }
+
+      function drag(image, startX, startY, endX, endY) {
+        var stage = image.parentNode;
+        stage.setPointerCapture = null;
+        var rect = image.getBoundingClientRect();
+        var init = { bubbles: true, pointerId: 1, pointerType: "mouse", isPrimary: true };
+        stage.dispatchEvent(new PointerEvent("pointerdown", Object.assign({}, init, {
+          clientX: rect.left + startX, clientY: rect.top + startY, button: 0
+        })));
+        stage.dispatchEvent(new PointerEvent("pointermove", Object.assign({}, init, {
+          clientX: rect.left + endX, clientY: rect.top + endY, buttons: 1
+        })));
+        stage.dispatchEvent(new PointerEvent("pointerup", Object.assign({}, init, {
+          clientX: rect.left + endX, clientY: rect.top + endY, button: 0
+        })));
+      }
+
+      function parseBox(field) {
+        return field.value.replace(/^-/, "").split(",").map(Number);
+      }
+
+      function sameBox(field, expected, label) {
+        var actual = parseBox(field);
+        if (actual.length !== 4 || actual.some(function (n) { return !Number.isFinite(n); }) ||
+            actual.some(function (n, i) { return n !== expected[i]; })) {
+          throw new Error(label + ": esperado " + expected.join(",") + ", recebido " + field.value);
+        }
+      }
+
+      window.runCropTests = async function () {
+        var results = { tests: 0, assertions: 0, failures: [] };
+        async function test(label, ratio, body) {
+          results.tests += 1;
+          try {
+            var field = makeField(label, ratio);
+            var image = await waitForImage(field);
+            await new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
+            body(field, image, function () { results.assertions += 1; });
+          } catch (error) {
+            results.failures.push({ test: label, message: error.message });
+          }
+        }
+
+        await test("quadrante inferior direito", 0, function (field, image, pass) {
+          drag(image, 100, 80, 200, 140);
+          sameBox(field, [200, 160, 400, 280], "quadrante inferior direito"); pass();
+        });
+        await test("quadrante superior direito", 0, function (field, image, pass) {
+          drag(image, 100, 180, 200, 100);
+          sameBox(field, [200, 200, 400, 360], "quadrante superior direito"); pass();
+        });
+        await test("quadrante inferior esquerdo", 0, function (field, image, pass) {
+          drag(image, 200, 80, 100, 140);
+          sameBox(field, [200, 160, 400, 280], "quadrante inferior esquerdo"); pass();
+        });
+        await test("quadrante superior esquerdo", 0, function (field, image, pass) {
+          drag(image, 200, 180, 100, 100);
+          sameBox(field, [200, 200, 400, 360], "quadrante superior esquerdo"); pass();
+        });
+        await test("proporção 1/2 arrastando para cima e esquerda", 0.5, function (field, image, pass) {
+          drag(image, 400, 300, 200, 100);
+          sameBox(field, [600, 200, 800, 600], "proporção 1/2 em direção negativa"); pass();
+        });
+        await test("proporção quadrada arrastando para cima e esquerda", 1, function (field, image, pass) {
+          drag(image, 400, 300, 200, 100);
+          sameBox(field, [400, 200, 800, 600], "proporção quadrada em direção negativa"); pass();
+        });
+        await test("proporção 2 arrastando para cima e esquerda", 2, function (field, image, pass) {
+          drag(image, 400, 300, 200, 100);
+          sameBox(field, [400, 400, 800, 600], "proporção 2 em direção negativa"); pass();
+        });
+        await test("limites da imagem", 0, function (field, image, pass) {
+          drag(image, -20, -30, 900, 700);
+          sameBox(field, [0, 0, 1000, 800], "limites da imagem"); pass();
+        });
+        await test("área zero mantém recorte válido", 0, function (field, image, pass) {
+          var before = parseBox(field);
+          drag(image, 100, 100, 100, 180);
+          var box = parseBox(field);
+          if (box.length !== 4 || box[2] <= box[0] || box[3] <= box[1]) {
+            throw new Error("área zero gerou recorte inválido: " + field.value);
+          }
+          if (field.value !== before.join(",")) throw new Error("movimento de largura zero alterou o recorte");
+          pass();
+          drag(image, 100, 100, 180, 100);
+          if (field.value !== before.join(",")) throw new Error("movimento de altura zero alterou o recorte");
+          pass();
+        });
+        await test("escala visual para coordenadas originais", 0, function (field, image, pass) {
+          var rect = image.getBoundingClientRect();
+          if (rect.width !== 500 || rect.height !== 400) throw new Error("escala visual inesperada: " + rect.width + "x" + rect.height);
+          drag(image, 50, 40, 150, 140);
+          sameBox(field, [100, 80, 300, 280], "escala visual para originais"); pass();
+        });
+        results.failed = results.failures.length;
+        window.cropTestResults = results;
+        return results;
+      };
+    })();
+  </script>
+  <script src="../../static/modern_components/crop.js"></script>
+</body>
+</html>

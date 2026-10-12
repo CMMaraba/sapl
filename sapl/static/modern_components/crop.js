@@ -232,6 +232,8 @@
       var y2 = clamp(pointerStart.y + (dy < 0 ? -height : height), 0, point.rect.height);
       var x1 = Math.min(pointerStart.x, x2);
       var y1 = Math.min(pointerStart.y, y2);
+      x2 = Math.max(pointerStart.x, x2);
+      y2 = Math.max(pointerStart.y, y2);
       if (x2 <= x1 || y2 <= y1) return;
       var dims = dimensions();
       writeBox([
