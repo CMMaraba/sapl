@@ -405,14 +405,10 @@ def xstr(s):
 
 
 def get_client_ip(request):
-    import ipaddress
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0]
-    else:
-        ip = request.META.get('HTTP_X_REAL_IP') or request.META.get('REMOTE_ADDR') or '0.0.0.0'
-    mask = getattr(settings, 'RATELIMIT_IPV6_MASK', 64) if ':' in ip else getattr(settings, 'RATELIMIT_IPV4_MASK', 32)
-    return str(ipaddress.ip_network(f'{ip}/{mask}', strict=False).network_address)
+    from sapl.modern_components.client_ip import client_ip
+    return client_ip(request.META,
+                     ipv4_mask=getattr(settings, 'RATELIMIT_IPV4_MASK', 32),
+                     ipv6_mask=getattr(settings, 'RATELIMIT_IPV6_MASK', 64))
 
 
 def ratelimit_ip(group, request):
