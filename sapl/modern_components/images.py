@@ -41,18 +41,25 @@ class PillowImageBackend:
         if not data:
             return ""
         options = dict(thumbnail_options or {})
-        rendered, extension = render_thumbnail(
-            data, options, _setting("IMAGE_CROPPING_THUMB_SIZE", (256, 256))
-        )
+        default_size = _setting("IMAGE_CROPPING_THUMB_SIZE", (256, 256))
+        size = options.get("size") or default_size
+        options["size"] = (max(1, int(size[0])), max(1, int(size[1])))
         signature = hashlib.sha256()
         signature.update(data)
         signature.update(json.dumps(options, sort_keys=True, default=str).encode("utf-8"))
-        signature.update(extension.encode("ascii"))
-        digest = signature.hexdigest()
-        name = "sapl-thumbnails/{}/{}.{}".format(digest[:2], digest, extension)
         storage = _storage_for(image_path)
-        if not storage.exists(name):
-            storage.save(name, ContentFile(rendered))
+        names = {}
+        # Probe both supported formats without decoding or resizing the source.
+        for extension in ("jpg", "png"):
+            candidate = signature.copy()
+            candidate.update(extension.encode("ascii"))
+            digest = candidate.hexdigest()
+            name = "sapl-thumbnails/{}/{}.{}".format(digest[:2], digest, extension)
+            names[extension] = name
+            if storage.exists(name):
+                return storage.url(name)
+        rendered, extension = render_thumbnail(data, options, default_size)
+        name = storage.save(names[extension], ContentFile(rendered))
         return storage.url(name)
 
 
