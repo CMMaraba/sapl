@@ -2,7 +2,11 @@ import importlib.util
 import hashlib
 import io
 import json
+import os
+import shutil
+import tempfile
 import unittest
+from types import SimpleNamespace
 
 from PIL import Image
 
@@ -10,10 +14,13 @@ HAS_DJANGO = importlib.util.find_spec("django") is not None
 
 if HAS_DJANGO:
     from unittest.mock import patch
+    from django.core.files.storage import FileSystemStorage
+    from django.db.models.fields.files import FieldFile
     from sapl.modern_components.images import (
-        ImageCropField, ImageRatioField, PillowImageBackend,
+        ImageCropField, ImageRatioField, PillowImageBackend, THUMBNAIL_VERSION,
+        delete_thumbnails, thumbnail_folder,
     )
-    from sapl.modern_components.image_processing import render_thumbnail
+    from sapl.modern_components.image_processing import read_source, render_thumbnail
 
 
 class MemoryStorage:
@@ -94,12 +101,16 @@ class DjangoImageFieldTests(unittest.TestCase):
         source = image_bytes()
         options = {"size": (4, 4)}
         rendered, extension = render_thumbnail(source, options)
-        # Cache filename contract already used by the original backend.
-        signature = hashlib.sha256(source)
-        signature.update(json.dumps(options, sort_keys=True, default=str).encode("utf-8"))
+        # Cache filename contract for sources without a stored name.
+        identity = hashlib.sha256(source).hexdigest()
+        signature = hashlib.sha256(identity.encode("utf-8"))
+        signature.update(json.dumps(
+            {"options": options, "version": THUMBNAIL_VERSION}, sort_keys=True, default=str
+        ).encode("utf-8"))
         signature.update(extension.encode("ascii"))
-        digest = signature.hexdigest()
-        name = "sapl-thumbnails/{}/{}.{}".format(digest[:2], digest, extension)
+        name = "{}/{}.{}".format(
+            thumbnail_folder("sha256:" + identity), signature.hexdigest(), extension
+        )
         storage.files[name] = rendered
         with patch("sapl.modern_components.images.default_storage", storage), patch(
             "sapl.modern_components.images.render_thumbnail", side_effect=AssertionError("Cached thumbnail was rasterized")
@@ -186,6 +197,143 @@ class DjangoImageFieldTests(unittest.TestCase):
         self.assertEqual(source.tell(), 3)
         self.assertEqual(render.call_count, 1)
         self.assertEqual(len(storage.files), 1)
+
+
+
+@unittest.skipUnless(HAS_DJANGO, "Django integration tests run inside the SAPL venv")
+class StoredThumbnailTests(unittest.TestCase):
+    """Thumbnails of committed files, as rendered for parlamentares pages."""
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="sapl-thumbs-")
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self.storage = FileSystemStorage(location=self.root, base_url="/media/")
+        self.photo = self.store("fotos/a.png", image_bytes())
+        self.options = {"size": (4, 4), "crop": True, "box": "1,1,7,5"}
+
+    def store(self, name, data):
+        saved = self.storage.save(name, io.BytesIO(data))
+        return FieldFile(None, SimpleNamespace(storage=self.storage), saved)
+
+    def thumbnails(self, field_file):
+        folder = thumbnail_folder(field_file.name)
+        try:
+            return self.storage.listdir(folder)[1]
+        except FileNotFoundError:
+            return []
+
+    def test_cache_hit_does_not_read_source_or_keep_it_open(self):
+        backend = PillowImageBackend()
+        with patch("sapl.modern_components.images.read_source", wraps=read_source) as reads:
+            first = backend.get_thumbnail_url(self.photo, self.options)
+            self.assertEqual(reads.call_count, 1)
+            for _ in range(3):
+                self.assertEqual(backend.get_thumbnail_url(self.photo, self.options), first)
+        self.assertEqual(reads.call_count, 1)
+        self.assertIsNone(self.photo._file)
+        self.assertEqual(len(self.thumbnails(self.photo)), 1)
+
+    def test_changed_source_file_gets_new_thumbnail(self):
+        backend = PillowImageBackend()
+        first = backend.get_thumbnail_url(self.photo, self.options)
+        path = self.storage.path(self.photo.name)
+        with open(path, "wb") as stream:
+            stream.write(image_bytes(color=(200, 10, 10)))
+        stat = os.stat(path)
+        os.utime(path, (stat.st_atime, stat.st_mtime + 10))
+        self.assertNotEqual(backend.get_thumbnail_url(self.photo, self.options), first)
+
+    def test_read_source_recovers_from_closed_cached_handle(self):
+        self.photo.open("rb")
+        self.photo.file.close()
+        self.assertEqual(read_source(self.photo), image_bytes())
+
+    def test_read_source_restores_uncommitted_upload_position(self):
+        upload = FieldFile(None, SimpleNamespace(storage=self.storage), "fotos/novo.png")
+        upload._file = io.BytesIO(image_bytes())
+        upload._committed = False
+        upload._file.seek(5)
+        self.assertEqual(read_source(upload), image_bytes())
+        self.assertEqual(upload._file.tell(), 5)
+
+    def test_concurrent_duplicate_is_removed(self):
+        backend = PillowImageBackend()
+        url = backend.get_thumbnail_url(self.photo, self.options)
+        # Simulate a second request whose jpg/png probes ran before the
+        # first one saved; later checks see the real storage.
+        real_exists = self.storage.exists
+        probes = [False, False]
+
+        def exists(name):
+            return probes.pop() if probes else real_exists(name)
+
+        with patch.object(self.storage, "exists", side_effect=exists):
+            again = backend.get_thumbnail_url(self.photo, self.options)
+        self.assertEqual(again, url)
+        self.assertEqual(len(self.thumbnails(self.photo)), 1)
+
+    def test_delete_thumbnails_only_touches_its_source(self):
+        other = self.store("fotos/b.png", image_bytes(color=(1, 2, 3)))
+        backend = PillowImageBackend()
+        backend.get_thumbnail_url(self.photo, self.options)
+        backend.get_thumbnail_url(self.photo, {"size": (8, 8), "crop": True, "box": "1,1,7,5"})
+        backend.get_thumbnail_url(other, self.options)
+        self.assertEqual(len(self.thumbnails(self.photo)), 2)
+        delete_thumbnails(self.photo.name, self.storage)
+        self.assertEqual(self.thumbnails(self.photo), [])
+        self.assertEqual(len(self.thumbnails(other)), 1)
+        delete_thumbnails("fotos/inexistente.png", self.storage)
+
+
+@unittest.skipUnless(HAS_DJANGO, "Django integration tests run inside the SAPL venv")
+class RatioFieldSignalTests(unittest.TestCase):
+    def ratio_field(self, size="128x128"):
+        field = ImageRatioField("fotografia", size)
+        field.set_attributes_from_name("cropping")
+        return field
+
+    def sender(self, previous):
+        query = SimpleNamespace(values_list=lambda *names: SimpleNamespace(first=lambda: previous))
+        storage = SimpleNamespace(name="storage")
+        return SimpleNamespace(
+            _default_manager=SimpleNamespace(filter=lambda **kwargs: query),
+            _meta=SimpleNamespace(get_field=lambda name: SimpleNamespace(storage=storage)),
+        ), storage
+
+    def instance(self, image_name, box):
+        return SimpleNamespace(pk=1, fotografia=SimpleNamespace(name=image_name), cropping=box)
+
+    def run_discard(self, previous, instance):
+        sender, storage = self.sender(previous)
+        with patch("sapl.modern_components.images.transaction.on_commit", side_effect=lambda fn: fn()), \
+                patch("sapl.modern_components.images.delete_thumbnails") as delete:
+            self.ratio_field().discard_stale_thumbnails(sender, instance)
+        return delete, storage
+
+    def test_changed_crop_discards_cached_thumbnails(self):
+        delete, storage = self.run_discard(("fotos/a.jpg", "0,0,10,10"), self.instance("fotos/a.jpg", "1,1,9,9"))
+        delete.assert_called_once_with("fotos/a.jpg", storage)
+
+    def test_replaced_image_discards_old_image_thumbnails(self):
+        delete, storage = self.run_discard(("fotos/a.jpg", "0,0,10,10"), self.instance("fotos/b.jpg", "0,0,10,10"))
+        delete.assert_called_once_with("fotos/a.jpg", storage)
+
+    def test_unchanged_record_keeps_thumbnails(self):
+        delete, _storage = self.run_discard(("fotos/a.jpg", "0,0,10,10"), self.instance("fotos/a.jpg", "0,0,10,10"))
+        delete.assert_not_called()
+
+    def test_initial_crop_is_centred_on_displayed_image_and_stored_raw(self):
+        field = self.ratio_field("200x100")
+        instance = SimpleNamespace(
+            ratio_fields=["cropping"], cropping="", fotografia=object(),
+            _meta=SimpleNamespace(get_field=lambda name: field),
+        )
+        # Stored 300x400 with EXIF 6: displayed as 400x300.
+        backend = SimpleNamespace(get_source_info=lambda image: (300, 400, 6))
+        with patch("sapl.modern_components.images.get_backend", return_value=backend):
+            field.initial_cropping(None, instance)
+        # Displayed box 0,50,400,250 is a centred 2:1 crop of 400x300.
+        self.assertEqual(instance.cropping, "50,0,250,400")
 
 
 if __name__ == "__main__":

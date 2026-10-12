@@ -172,12 +172,17 @@ def dont_break_out(value, max_part=50):
 
 
 def clear_thumbnails_cache(queryset, field):
+    from sapl.modern_components.images import delete_thumbnails
+
     for r in queryset:
         assert hasattr(r, field), _(
             'Objeto da listagem não possui o campo informado')
 
         if not getattr(r, field):
             continue
+
+        image = getattr(r, field)
+        delete_thumbnails(image.name, image.storage)
 
         path = Path(getattr(r, field).path)
 

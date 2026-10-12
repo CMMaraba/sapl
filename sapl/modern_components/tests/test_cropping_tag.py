@@ -49,3 +49,27 @@ class CroppedThumbnailTagTests(SimpleTestCase):
         self.instance.anexo = related
         image, _options = cropped_thumbnail(self.instance, "cropping")
         self.assertIs(image, self.image)
+
+    @patch("sapl.modern_components.templatetags.cropping.get_backend")
+    def test_free_crop_uses_selection_size(self, get_backend):
+        get_backend.return_value = self.backend
+        self.ratio.free_crop = True
+        self.ratio.width = self.ratio.height = 100
+        _image, options = cropped_thumbnail(self.instance, "cropping")
+        self.assertEqual(
+            options, {"free_crop": True, "scale": 1.0, "box": "10,20,110,120", "crop": True}
+        )
+
+    @patch("sapl.modern_components.templatetags.cropping.get_backend")
+    def test_backend_failure_renders_empty_url(self, get_backend):
+        get_backend.return_value.get_thumbnail_url.side_effect = ValueError(
+            "I/O operation on closed file"
+        )
+        with self.assertLogs("sapl.modern_components.templatetags.cropping", "WARNING"):
+            self.assertEqual(cropped_thumbnail(self.instance, "cropping"), "")
+
+    @patch("sapl.modern_components.templatetags.cropping.get_backend")
+    def test_thumbnail_debug_reraises(self, get_backend):
+        get_backend.return_value.get_thumbnail_url.side_effect = OSError("broken")
+        with self.settings(THUMBNAIL_DEBUG=True), self.assertRaises(OSError):
+            cropped_thumbnail(self.instance, "cropping")

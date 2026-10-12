@@ -1,21 +1,30 @@
 """Django integration for SAPL image cropping and thumbnail generation.
 
-Crop values remain "x1,y1,x2,y2" in the source image's oriented pixels.
+Crop values remain "x1,y1,x2,y2" in the stored file's pixels, before EXIF
+orientation, as in the former django-image-cropping pipeline.
 """
 import hashlib
 import json
+import logging
 
 from django import forms
 from django.conf import settings
 from django.contrib.admin.widgets import AdminFileWidget
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db import models
+from django.db import models, transaction
 from django.db.models import signals
 from django.templatetags.static import static
 
-from .image_geometry import max_cropping, parse_crop_box, serialize_crop_box
-from .image_processing import pil_image, read_source, render_thumbnail
+from .image_geometry import (box_to_stored, max_cropping, oriented_size,
+                             serialize_crop_box)
+from .image_processing import image_info, read_source, render_thumbnail
+
+logger = logging.getLogger(__name__)
+
+THUMBNAIL_ROOT = "sapl-thumbnails"
+# Bump when rendering semantics change so stale cache files are not reused.
+THUMBNAIL_VERSION = 2
 
 
 def _setting(name, default):
@@ -29,37 +38,96 @@ def _storage_for(source):
     return getattr(source, "storage", None) or default_storage
 
 
+def thumbnail_folder(source_name):
+    """Per-source cache folder, so thumbnails can be removed with the source."""
+    digest = hashlib.sha256(str(source_name).encode("utf-8")).hexdigest()
+    return "{}/{}/{}".format(THUMBNAIL_ROOT, digest[:2], digest)
+
+
+def delete_thumbnails(source_name, storage=None):
+    """Remove every cached thumbnail generated from source_name."""
+    if not source_name:
+        return
+    storage = storage or default_storage
+    folder = thumbnail_folder(source_name)
+    try:
+        _dirs, files = storage.listdir(folder)
+    except (OSError, NotImplementedError):
+        return
+    for filename in files:
+        try:
+            storage.delete("{}/{}".format(folder, filename))
+        except OSError:
+            logger.warning("Falha ao remover miniatura %s/%s", folder, filename)
+
+
+def _source_identity(source, storage):
+    """Return (cache folder, cache identity, bytes or None).
+
+    Committed files are identified by name, size and modification time, so a
+    cached thumbnail is found without reading the source image.
+    """
+    name = getattr(source, "name", None)
+    if name and getattr(source, "_committed", False):
+        try:
+            size = storage.size(name)
+            modified = storage.get_modified_time(name).timestamp()
+        except (AttributeError, NotImplementedError, OSError, ValueError):
+            pass
+        else:
+            return thumbnail_folder(name), "{}|{}|{}".format(name, size, modified), None
+    data = read_source(source)
+    if not data:
+        return None, None, None
+    digest = hashlib.sha256(data).hexdigest()
+    return thumbnail_folder("sha256:" + digest), digest, data
+
+
 class PillowImageBackend:
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
+    def get_source_info(self, image):
+        """Return (stored width, stored height, EXIF orientation)."""
+        return image_info(image)
+
     def get_size(self, image):
-        return pil_image(image).size
+        """Displayed (EXIF oriented) size."""
+        width, height, orientation = image_info(image)
+        return oriented_size(width, height, orientation)
 
     def get_thumbnail_url(self, image_path, thumbnail_options):
-        data = read_source(image_path)
-        if not data:
-            return ""
         options = dict(thumbnail_options or {})
         default_size = _setting("IMAGE_CROPPING_THUMB_SIZE", (256, 256))
         size = options.get("size") or default_size
         options["size"] = (max(1, int(size[0])), max(1, int(size[1])))
-        signature = hashlib.sha256()
-        signature.update(data)
-        signature.update(json.dumps(options, sort_keys=True, default=str).encode("utf-8"))
         storage = _storage_for(image_path)
+        folder, identity, data = _source_identity(image_path, storage)
+        if identity is None:
+            return ""
+        signature = hashlib.sha256()
+        signature.update(identity.encode("utf-8"))
+        signature.update(json.dumps(
+            {"options": options, "version": THUMBNAIL_VERSION},
+            sort_keys=True, default=str,
+        ).encode("utf-8"))
         names = {}
         # Probe both supported formats without decoding or resizing the source.
         for extension in ("jpg", "png"):
             candidate = signature.copy()
             candidate.update(extension.encode("ascii"))
-            digest = candidate.hexdigest()
-            name = "sapl-thumbnails/{}/{}.{}".format(digest[:2], digest, extension)
+            name = "{}/{}.{}".format(folder, candidate.hexdigest(), extension)
             names[extension] = name
             if storage.exists(name):
                 return storage.url(name)
+        if data is None:
+            data = read_source(image_path)
         rendered, extension = render_thumbnail(data, options, default_size)
-        name = storage.save(names[extension], ContentFile(rendered))
+        name = names[extension]
+        saved = storage.save(name, ContentFile(rendered))
+        if saved != name:
+            # A concurrent request stored the same thumbnail first.
+            storage.delete(saved)
         return storage.url(name)
 
 
@@ -92,18 +160,17 @@ class CropWidget(CropMediaMixin, forms.TextInput):
 
 def _image_widget_attrs(image, field_name):
     try:
-        width, height = get_backend().get_size(image)
+        width, height, orientation = get_backend().get_source_info(image)
+        width, height = oriented_size(width, height, orientation)
         attrs = {
             "class": "sapl-crop-source",
             "data-field-name": field_name,
             "data-org-width": str(width),
             "data-org-height": str(height),
+            "data-exif-orientation": str(orientation),
         }
         try:
             attrs["data-image-url"] = image.url
-            attrs["data-thumbnail-url"] = get_backend().get_thumbnail_url(
-                image, {"size": _setting("IMAGE_CROPPING_THUMB_SIZE", (320, 240))}
-            )
         except (AttributeError, ValueError, OSError):
             pass
         return attrs
@@ -201,6 +268,26 @@ class ImageRatioField(models.CharField):
             cls.add_to_class("ratio_fields", [])
         cls.ratio_fields.append(name)
         signals.pre_save.connect(self.initial_cropping, sender=cls, weak=False)
+        if not self.image_fk_field:
+            signals.pre_save.connect(self.discard_stale_thumbnails, sender=cls, weak=False)
+
+    def discard_stale_thumbnails(self, sender, instance, raw=False, **kwargs):
+        """Drop cached thumbnails when the crop or the source image changes."""
+        if raw or instance.pk is None:
+            return
+        previous = sender._default_manager.filter(pk=instance.pk).values_list(
+            self.image_field, self.name
+        ).first()
+        if not previous:
+            return
+        old_image, old_box = previous
+        image = getattr(instance, self.image_field, None)
+        current_image = getattr(image, "name", None) or ""
+        current_box = getattr(instance, self.name, "") or ""
+        if not old_image or (old_image == current_image and (old_box or "") == current_box):
+            return
+        storage = sender._meta.get_field(self.image_field).storage
+        transaction.on_commit(lambda: delete_thumbnails(old_image, storage))
 
     def initial_cropping(self, sender, instance, *args, **kwargs):
         for ratiofieldname in getattr(instance, "ratio_fields", ()):
@@ -213,16 +300,23 @@ class ImageRatioField(models.CharField):
             if not image:
                 continue
             try:
-                width, height = image.width, image.height
-            except (AttributeError, ValueError, OSError):
-                width, height = get_backend().get_size(image)
+                width, height, orientation = get_backend().get_source_info(image)
+            except (AttributeError, ValueError, OSError, TypeError):
+                try:
+                    width, height, orientation = image.width, image.height, 1
+                except (AttributeError, ValueError, OSError, TypeError):
+                    continue
+            # Centre the default box on the displayed image, then persist it
+            # in stored pixels like every other box.
+            display_width, display_height = oriented_size(width, height, orientation)
             box = max_cropping(
                 ratiofield.width,
                 ratiofield.height,
-                width,
-                height,
+                display_width,
+                display_height,
                 free_crop=ratiofield.free_crop,
             )
+            box = box_to_stored(box, width, height, orientation)
             setattr(instance, ratiofieldname, serialize_crop_box(box))
 
     def formfield(self, *args, **kwargs):

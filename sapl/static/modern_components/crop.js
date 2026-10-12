@@ -38,6 +38,109 @@
     return Math.max(min, Math.min(value, max));
   }
 
+  /* Persisted boxes use the stored file pixels (before EXIF orientation);
+     the editor works on the image as the browser displays it. */
+  function normalizeOrientation(value) {
+    var orientation = parseInt(value, 10);
+    return orientation >= 1 && orientation <= 8 ? orientation : 1;
+  }
+
+  function swapsAxes(orientation) {
+    return orientation >= 5;
+  }
+
+  function toDisplayPoint(x, y, width, height, orientation) {
+    switch (orientation) {
+      case 2: return [width - x, y];
+      case 3: return [width - x, height - y];
+      case 4: return [x, height - y];
+      case 5: return [y, x];
+      case 6: return [height - y, x];
+      case 7: return [height - y, width - x];
+      case 8: return [y, width - x];
+      default: return [x, y];
+    }
+  }
+
+  function toStoredPoint(x, y, width, height, orientation) {
+    switch (orientation) {
+      case 2: return [width - x, y];
+      case 3: return [width - x, height - y];
+      case 4: return [x, height - y];
+      case 5: return [y, x];
+      case 6: return [y, height - x];
+      case 7: return [width - y, height - x];
+      case 8: return [width - y, x];
+      default: return [x, y];
+    }
+  }
+
+  /* width and height are the stored (not displayed) dimensions. */
+  function mapBox(mapper, box, width, height, orientation) {
+    var a = mapper(box[0], box[1], width, height, orientation);
+    var b = mapper(box[2], box[3], width, height, orientation);
+    return [Math.min(a[0], b[0]), Math.min(a[1], b[1]),
+      Math.max(a[0], b[0]), Math.max(a[1], b[1])];
+  }
+
+  function boxToDisplay(box, width, height, orientation) {
+    return mapBox(toDisplayPoint, box, width, height, orientation);
+  }
+
+  function boxToStored(box, width, height, orientation) {
+    return mapBox(toStoredPoint, box, width, height, orientation);
+  }
+
+  /* EXIF orientation of a JPEG, read from the start of the file. */
+  function orientationFromBuffer(buffer) {
+    var view = new DataView(buffer);
+    if (view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) return 1;
+    var offset = 2;
+    while (offset + 4 <= view.byteLength) {
+      var marker = view.getUint16(offset);
+      if ((marker & 0xFF00) !== 0xFF00 || marker === 0xFFDA) return 1;
+      var length = view.getUint16(offset + 2);
+      if (length < 2) return 1;
+      if (marker === 0xFFE1 && offset + 10 <= view.byteLength &&
+          view.getUint32(offset + 4) === 0x45786966 && view.getUint16(offset + 8) === 0) {
+        var tiff = offset + 10;
+        if (tiff + 8 > view.byteLength) return 1;
+        var little = view.getUint16(tiff) === 0x4949;
+        var ifd = tiff + view.getUint32(tiff + 4, little);
+        if (ifd + 2 > view.byteLength) return 1;
+        var count = view.getUint16(ifd, little);
+        for (var i = 0; i < count; i++) {
+          var entry = ifd + 2 + i * 12;
+          if (entry + 12 > view.byteLength) return 1;
+          if (view.getUint16(entry, little) === 0x0112) {
+            return normalizeOrientation(view.getUint16(entry + 8, little));
+          }
+        }
+        return 1;
+      }
+      offset += 2 + length;
+    }
+    return 1;
+  }
+
+  function readFileOrientation(file) {
+    if (!window.Promise || !file.slice) return { then: function (done) { done(1); } };
+    var head = file.slice(0, 262144);
+    var read = head.arrayBuffer ? head.arrayBuffer() : new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(reader.result); };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(head);
+    });
+    return read.then(orientationFromBuffer).catch(function () { return 1; });
+  }
+
+  window.SaplCropGeometry = {
+    boxToDisplay: boxToDisplay,
+    boxToStored: boxToStored,
+    orientationFromBuffer: orientationFromBuffer
+  };
+
   function initField(ratioField) {
     if (ratioField.dataset.saplCropReady === "1") return;
     var fileInput = chooseFileInput(ratioField);
@@ -47,6 +150,7 @@
     var sourceUrl = fileInput.dataset.imageUrl || fileInput.dataset.thumbnailUrl || "";
     var sourceWidth = parseInt(fileInput.dataset.orgWidth || "0", 10);
     var sourceHeight = parseInt(fileInput.dataset.orgHeight || "0", 10);
+    var orientation = normalizeOrientation(fileInput.dataset.exifOrientation || "1");
 
     var container = document.createElement("div");
     container.className = "sapl-crop-ui";
@@ -120,6 +224,14 @@
       stage.classList.toggle("size-warning", tooSmall);
     }
 
+    /* Stored dimensions, i.e. displayed ones before EXIF orientation. */
+    function storedSize() {
+      var dims = dimensions();
+      return swapsAxes(orientation) ?
+        { width: dims.height, height: dims.width } :
+        { width: dims.width, height: dims.height };
+    }
+
     function writeBox(box) {
       var dims = dimensions();
       var x1 = clamp(Math.round(box[0]), 0, Math.max(0, dims.width - 1));
@@ -127,7 +239,8 @@
       var x2 = clamp(Math.round(box[2]), x1 + 1, dims.width);
       var y2 = clamp(Math.round(box[3]), y1 + 1, dims.height);
       currentBox = [x1, y1, x2, y2];
-      var text = currentBox.join(",");
+      var stored = storedSize();
+      var text = boxToStored(currentBox, stored.width, stored.height, orientation).join(",");
       ratioField.value = fullsize ? "-" + text : text;
       positionBox(currentBox);
     }
@@ -137,7 +250,8 @@
       fullsize = parsed.full;
       if (fullsizeInput) fullsizeInput.checked = fullsize;
       if (parsed.box) {
-        currentBox = parsed.box;
+        var stored = storedSize();
+        currentBox = boxToDisplay(parsed.box, stored.width, stored.height, orientation);
       } else if (sourceWidth > 0 && sourceHeight > 0) {
         var ratio = parseFloat(ratioField.dataset.ratio || "0");
         if (ratio > 0 && sourceWidth / sourceHeight > ratio) {
@@ -176,7 +290,12 @@
         ratioField.value = "";
         fullsize = false;
         if (fullsizeInput) fullsizeInput.checked = false;
-        image.src = objectUrl;
+        var url = objectUrl;
+        readFileOrientation(file).then(function (value) {
+          if (url !== objectUrl) return;
+          orientation = value;
+          image.src = url;
+        });
       });
     }
 
