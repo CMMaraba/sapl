@@ -1,8 +1,9 @@
-from django.http import JsonResponse
+from django.http import HttpResponse
 from django_filters import rest_framework as filters
 from django_filters.rest_framework.backends import DjangoFilterBackend
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 from rest_framework.permissions import AllowAny
+from rest_framework.renderers import JSONRenderer
 from rest_framework.viewsets import GenericViewSet
 
 from sapl.api.serializers import SessaoPlenariaECidadaniaSerializer
@@ -44,6 +45,7 @@ class SessaoPlenariaViewSet(ListModelMixin,
             queryset = self.filter_queryset(self.get_queryset())
             session = queryset.order_by('data_inicio', 'hora_inicio', 'pk').first()
             if session is not None:
-                return JsonResponse(self.get_serializer(session).data,
-                                    json_dumps_params={'ensure_ascii': False})
+                return HttpResponse(
+                    JSONRenderer().render(self.get_serializer(session).data),
+                    content_type='application/json')
         return super().list(request, *args, **kwargs)

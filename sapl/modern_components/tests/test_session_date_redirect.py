@@ -14,6 +14,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import ValidationError
 from rest_framework.mixins import ListModelMixin
 from rest_framework.request import Request
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.test import APIRequestFactory
 
@@ -46,7 +47,8 @@ class SessionDateRedirectTests(SimpleTestCase):
             with self.subTest(value=value):
                 view = self.view(data_inicio=value, get_all='true')
                 session = SimpleNamespace(pk=867)
-                data = {'codReuniao': 867, 'datReuniaoString': '20/10/2026 09:30:00'}
+                data = {'codReuniao': 867, 'txtTipoReuniao': 'Ordinária',
+                        'datReuniaoString': '20/10/2026 09:30:00'}
                 with patch.object(QuerySet, 'first', return_value=session):
                     with patch.object(view, 'get_serializer',
                                       return_value=SimpleNamespace(data=data)) as serialize:
@@ -55,6 +57,7 @@ class SessionDateRedirectTests(SimpleTestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response['Content-Type'], 'application/json')
                 self.assertEqual(json.loads(response.content), data)
+                self.assertEqual(response.content, JSONRenderer().render(data))
                 self.assertNotIn('Location', response)
 
     def test_json_uses_lookup_result_instead_of_fixed_id(self):
