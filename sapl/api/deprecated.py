@@ -1,5 +1,4 @@
-from django.http import HttpResponseRedirect
-from django.urls import reverse
+from django.http import JsonResponse
 from django_filters import rest_framework as filters
 from django_filters.rest_framework.backends import DjangoFilterBackend
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
@@ -43,10 +42,8 @@ class SessaoPlenariaViewSet(ListModelMixin,
         if (request.query_params.get('data_inicio') and
                 request.query_params.get('get_all', '').lower() == 'true'):
             queryset = self.filter_queryset(self.get_queryset())
-            session_id = queryset.order_by(
-                'data_inicio', 'hora_inicio', 'pk').values_list('pk', flat=True).first()
-            if session_id is not None:
-                url = reverse('sapl.api:sessao_plenaria_old-detail',
-                              kwargs={'pk': session_id})
-                return HttpResponseRedirect(url + '?format=json')
+            session = queryset.order_by('data_inicio', 'hora_inicio', 'pk').first()
+            if session is not None:
+                return JsonResponse(self.get_serializer(session).data,
+                                    json_dumps_params={'ensure_ascii': False})
         return super().list(request, *args, **kwargs)

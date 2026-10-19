@@ -1,5 +1,7 @@
+import json
 import os
 from datetime import date
+from types import SimpleNamespace
 from unittest.mock import patch
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sapl.settings')
@@ -39,22 +41,30 @@ class SessionDateRedirectTests(SimpleTestCase):
                 self.assertEqual(tuple(map(str, filterset.qs.query.sql_with_params()[1])),
                                  ('2026-10-20',))
 
-    def test_date_resolves_to_session_id_with_json_redirect(self):
+    def test_date_returns_session_json_without_redirect(self):
         for value in ('20/10/2026', '2026-10-20'):
             with self.subTest(value=value):
                 view = self.view(data_inicio=value, get_all='true')
-                with patch.object(QuerySet, 'first', return_value=867):
-                    response = view.list(view.request)
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response['Location'],
-                                 '/api/sessao-plenaria/867/?format=json')
+                session = SimpleNamespace(pk=867)
+                data = {'codReuniao': 867, 'datReuniaoString': '20/10/2026 09:30:00'}
+                with patch.object(QuerySet, 'first', return_value=session):
+                    with patch.object(view, 'get_serializer',
+                                      return_value=SimpleNamespace(data=data)) as serialize:
+                        response = view.list(view.request)
+                serialize.assert_called_once_with(session)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response['Content-Type'], 'application/json')
+                self.assertEqual(json.loads(response.content), data)
+                self.assertNotIn('Location', response)
 
-    def test_redirect_uses_lookup_result_instead_of_fixed_id(self):
+    def test_json_uses_lookup_result_instead_of_fixed_id(self):
         view = self.view(data_inicio='06/10/2026', get_all='TRUE')
-        with patch.object(QuerySet, 'first', return_value=866):
-            response = view.list(view.request)
-        self.assertEqual(response['Location'],
-                         '/api/sessao-plenaria/866/?format=json')
+        session = SimpleNamespace(pk=866)
+        with patch.object(QuerySet, 'first', return_value=session):
+            with patch.object(view, 'get_serializer',
+                              return_value=SimpleNamespace(data={'codReuniao': 866})):
+                response = view.list(view.request)
+        self.assertEqual(json.loads(response.content), {'codReuniao': 866})
 
     def test_missing_session_returns_empty_json_list(self):
         view = self.view(data_inicio='19/10/2026', get_all='true')
@@ -64,16 +74,19 @@ class SessionDateRedirectTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, [])
 
-    def test_multiple_sessions_redirect_to_first_by_time_then_id(self):
+    def test_multiple_sessions_return_first_by_time_then_id(self):
         view = self.view(data_inicio='20/10/2026', get_all='true')
-        with patch.object(QuerySet, 'first', autospec=True, return_value=867) as first:
-            response = view.list(view.request)
+        session = SimpleNamespace(pk=867)
+        with patch.object(QuerySet, 'first', autospec=True, return_value=session) as first:
+            with patch.object(view, 'get_serializer',
+                              return_value=SimpleNamespace(data={'codReuniao': 867})):
+                response = view.list(view.request)
         queryset = first.call_args.args[0]
         self.assertEqual(queryset.query.order_by,
                          ('data_inicio', 'hora_inicio', 'pk'))
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response['Location'],
-                         '/api/sessao-plenaria/867/?format=json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.content), {'codReuniao': 867})
+        self.assertNotIn('Location', response)
 
     def test_invalid_date_is_rejected_before_session_lookup(self):
         view = self.view(data_inicio='31/02/2026', get_all='true')
