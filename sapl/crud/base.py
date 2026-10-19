@@ -26,10 +26,10 @@ from sapl.crispy_layout_mixin import CrispyLayoutFormMixin, get_field_display
 from sapl.crispy_layout_mixin import SaplFormHelper
 from sapl.rules import (RP_ADD, RP_CHANGE, RP_DELETE, RP_DETAIL,
                         RP_LIST)
-from sapl.settings import RATE_LIMITER_RATE
 from sapl.utils import normalize, ratelimit_ip
 
 from django_ratelimit.decorators import ratelimit
+from sapl.modern_components.rate_limit import rate_for_request
 from django.utils.decorators import method_decorator
 
 logger = logging.getLogger(settings.BASE_DIR.name)
@@ -391,7 +391,7 @@ class CrudBaseMixin(CrispyLayoutFormMixin):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class CrudListView(PermissionRequiredContainerCrudMixin, ListView):
@@ -731,7 +731,7 @@ class CrudCreateView(PermissionRequiredContainerCrudMixin,
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class CrudDetailView(PermissionRequiredContainerCrudMixin,
@@ -1200,7 +1200,7 @@ class MasterDetailCrud(Crud):
             return context
 
     @method_decorator(ratelimit(key=ratelimit_ip,
-                                rate=RATE_LIMITER_RATE,
+                                rate=rate_for_request,
                                 block=True),
                       name='dispatch')
     class ListView(Crud.ListView):
@@ -1436,7 +1436,7 @@ class MasterDetailCrud(Crud):
                 return self.resolve_url(ACTION_LIST, args=(pk,))
 
     @method_decorator(ratelimit(key=ratelimit_ip,
-                                rate=RATE_LIMITER_RATE,
+                                rate=rate_for_request,
                                 block=True),
                       name='dispatch')
     class DetailView(Crud.DetailView):

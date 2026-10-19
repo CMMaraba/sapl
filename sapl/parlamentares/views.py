@@ -46,9 +46,9 @@ from .models import (CargoMesa, Coligacao, ComposicaoColigacao, ComposicaoMesa,
                      Bloco, FrenteCargo, FrenteParlamentar, BlocoCargo, BlocoMembro, MesaDiretora)
 
 from django_ratelimit.decorators import ratelimit
+from sapl.modern_components.rate_limit import rate_for_request
 from django.utils.decorators import method_decorator
 
-from ..settings import RATE_LIMITER_RATE
 
 FrenteCargoCrud = CrudAux.build(FrenteCargo, 'frente_cargo')
 BlocoCargoCrud = CrudAux.build(BlocoCargo, 'bloco_cargo')
@@ -189,7 +189,7 @@ class ProposicaoParlamentarCrud(CrudBaseForListAndDetailExternalAppView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class PesquisarParlamentarView(FilterView):
@@ -255,7 +255,7 @@ class PesquisarParlamentarView(FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class PesquisarColigacaoView(FilterView):
@@ -315,7 +315,7 @@ class PesquisarColigacaoView(FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class PesquisarPartidoView(FilterView):

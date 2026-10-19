@@ -63,9 +63,10 @@ from .forms import (AcompanhamentoDocumentoForm, AnexadoEmLoteFilterSet, Anexado
 from .models import (Anexado, AcompanhamentoDocumento, DocumentoAcessorioAdministrativo,
                      DocumentoAdministrativo, StatusTramitacaoAdministrativo,
                      TipoDocumentoAdministrativo, TramitacaoAdministrativo)
-from ..settings import MEDIA_ROOT, RATE_LIMITER_RATE
+from ..settings import MEDIA_ROOT
 
 from django_ratelimit.decorators import ratelimit
+from sapl.modern_components.rate_limit import rate_for_request
 from django.utils.decorators import method_decorator
 
 TipoDocumentoAdministrativoCrud = CrudAux.build(
@@ -540,7 +541,7 @@ class StatusTramitacaoAdministrativoCrud(CrudAux):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class ProtocoloPesquisaView(PermissionRequiredMixin, FilterView):
@@ -1041,7 +1042,7 @@ class ProtocoloMateriaTemplateView(PermissionRequiredMixin, TemplateView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class PesquisarDocumentoAdministrativoView(DocumentoAdministrativoMixin,
@@ -1178,7 +1179,7 @@ class AnexadoCrud(MasterDetailCrud):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class DocumentoAnexadoEmLoteView(PermissionRequiredMixin, FilterView):
@@ -1659,7 +1660,7 @@ class FichaSelecionaAdmView(PermissionRequiredMixin, FormView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class PrimeiraTramitacaoEmLoteAdmView(PermissionRequiredMixin, FilterView):
@@ -1899,7 +1900,7 @@ class VinculoDocAdminMateriaCrud(MasterDetailCrud):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class VinculoDocAdminMateriaEmLoteView(PermissionRequiredMixin, FilterView):

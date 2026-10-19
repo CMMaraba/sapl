@@ -21,6 +21,7 @@ from django_filters.views import FilterView
 import weasyprint
 
 from django_ratelimit.decorators import ratelimit
+from sapl.modern_components.rate_limit import rate_for_request
 from django.utils.decorators import method_decorator
 
 from sapl import settings
@@ -39,7 +40,6 @@ from .forms import (AnexoNormaJuridicaForm, NormaFilterSet, NormaJuridicaForm,
                     AutoriaNormaForm, AssuntoNormaFilterSet)
 from .models import (AnexoNormaJuridica, AssuntoNorma, NormaJuridica, NormaRelacionada,
                      TipoNormaJuridica, TipoVinculoNormaJuridica, AutoriaNorma, NormaEstatisticas)
-from ..settings import RATE_LIMITER_RATE
 
 # LegislacaoCitadaCrud = Crud.build(LegislacaoCitada, '')
 TipoNormaCrud = CrudAux.build(
@@ -62,7 +62,7 @@ class AssuntoNormaCrud(CrudAux):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class PesquisarAssuntoNormaView(FilterView):
@@ -156,7 +156,7 @@ class NormaRelacionadaCrud(MasterDetailCrud):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class NormaPesquisaView(MultiFormatOutputMixin, FilterView):

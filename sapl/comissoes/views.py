@@ -34,9 +34,9 @@ from .models import (CargoComissao, Comissao, Composicao, DocumentoAcessorio,
                      Participacao, Periodo, Reuniao, TipoComissao)
 
 from django_ratelimit.decorators import ratelimit
+from sapl.modern_components.rate_limit import rate_for_request
 from django.utils.decorators import method_decorator
 
-from ..settings import RATE_LIMITER_RATE
 
 
 def pegar_url_composicao(pk):
@@ -346,7 +346,7 @@ class RemovePautaView(PermissionRequiredMixin, CreateView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class AdicionaPautaView(PermissionRequiredMixin, FilterView):

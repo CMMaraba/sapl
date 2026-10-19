@@ -29,6 +29,7 @@ from django_filters.views import FilterView
 import pytz
 
 from django_ratelimit.decorators import ratelimit
+from sapl.modern_components.rate_limit import rate_for_request
 from django.utils.decorators import method_decorator
 
 from sapl.base.models import AppConfig as AppsAppConfig
@@ -47,7 +48,7 @@ from sapl.sessao.apps import AppConfig
 from sapl.sessao.forms import ExpedienteMateriaForm, OrdemDiaForm, OrdemExpedienteLeituraForm, \
     CorrespondenciaForm, CorrespondenciaEmLoteFilterSet
 from sapl.sessao.models import Correspondencia
-from sapl.settings import TIME_ZONE, RATE_LIMITER_RATE
+from sapl.settings import TIME_ZONE
 from sapl.utils import show_results_filter_set, remover_acentos, get_client_ip, \
     MultiFormatOutputMixin, PautaMultiFormatOutputMixin, ratelimit_ip
 
@@ -3817,7 +3818,7 @@ class SessaoListView(ListView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class PautaSessaoView(TemplateView):
@@ -3836,7 +3837,7 @@ class PautaSessaoView(TemplateView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class PautaSessaoDetailView(PautaMultiFormatOutputMixin, DetailView):
@@ -4027,7 +4028,7 @@ class PautaSessaoDetailView(PautaMultiFormatOutputMixin, DetailView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class PesquisarSessaoPlenariaView(MultiFormatOutputMixin, FilterView):
@@ -5421,7 +5422,7 @@ class CorrespondenciaCrud(MasterDetailCrud):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class CorrespondenciaEmLoteView(PermissionRequiredMixin, FilterView):

@@ -34,6 +34,7 @@ from django_filters.views import FilterView
 import weasyprint
 
 from django_ratelimit.decorators import ratelimit
+from sapl.modern_components.rate_limit import rate_for_request
 from django.utils.decorators import method_decorator
 
 import sapl
@@ -53,7 +54,7 @@ from sapl.materia.forms import (AnexadaForm, AutoriaForm, AutoriaMultiCreateForm
 from sapl.norma.models import LegislacaoCitada
 from sapl.parlamentares.models import Legislatura
 from sapl.protocoloadm.models import Protocolo
-from sapl.settings import MAX_DOC_UPLOAD_SIZE, MEDIA_ROOT, RATE_LIMITER_RATE
+from sapl.settings import MAX_DOC_UPLOAD_SIZE, MEDIA_ROOT
 from sapl.utils import (autor_label, autor_modal, gerar_hash_arquivo, get_base_url,
                         get_client_ip, get_mime_type_from_file_extension, lista_anexados,
                         mail_service_configured, montar_row_autor, SEPARADOR_HASH_PROPOSICAO,
@@ -137,7 +138,7 @@ def proposicao_texto(request, pk):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class AdicionarVariasAutorias(PermissionRequiredForAppCrudMixin, FilterView):
@@ -363,7 +364,7 @@ class StatusTramitacaoCrud(CrudAux):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class PesquisarStatusTramitacaoView(FilterView):
@@ -2015,7 +2016,7 @@ class AcompanhamentoExcluirView(TemplateView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class MateriaLegislativaPesquisaView(MultiFormatOutputMixin, FilterView):
@@ -2280,7 +2281,7 @@ class AcompanhamentoMateriaView(CreateView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class DocumentoAcessorioEmLoteView(PermissionRequiredMixin, FilterView):
@@ -2396,7 +2397,7 @@ class DocumentoAcessorioEmLoteView(PermissionRequiredMixin, FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class MateriaAnexadaEmLoteView(PermissionRequiredMixin, FilterView):
@@ -2524,7 +2525,7 @@ class MateriaAnexadaEmLoteView(PermissionRequiredMixin, FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class PrimeiraTramitacaoEmLoteView(PermissionRequiredMixin, FilterView):

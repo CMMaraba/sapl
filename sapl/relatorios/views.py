@@ -48,7 +48,7 @@ from sapl.sessao.views import (get_identificacao_basica, get_mesa_diretora,
                                get_oradores_explicacoes_pessoais, get_consideracoes_finais,
                                get_ocorrencias_da_sessao, get_assinaturas,
                                get_correspondencias)
-from sapl.settings import MEDIA_URL, RATE_LIMITER_RATE
+from sapl.settings import MEDIA_URL
 from sapl.settings import STATIC_ROOT
 from sapl.utils import LISTA_DE_UFS, TrocaTag, filiacao_data, create_barcode, show_results_filter_set, \
     num_materias_por_tipo, parlamentares_ativos, MultiFormatOutputMixin, ratelimit_ip
@@ -60,6 +60,7 @@ from .templates import (pdf_capa_processo_gerar,
 from sapl.crud.base import make_pagination
 
 from django_ratelimit.decorators import ratelimit
+from sapl.modern_components.rate_limit import rate_for_request
 from django.utils.decorators import method_decorator
 
 
@@ -1847,7 +1848,7 @@ class RelatorioMixin:
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioDocumentosAcessoriosView(RelatorioMixin, FilterView):
@@ -1895,7 +1896,7 @@ class RelatorioDocumentosAcessoriosView(RelatorioMixin, FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioVotacoesNominaisView(RelatorioMixin, MultiFormatOutputMixin, FilterView):
@@ -1968,7 +1969,7 @@ class RelatorioVotacoesNominaisView(RelatorioMixin, MultiFormatOutputMixin, Filt
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioAtasView(RelatorioMixin, FilterView):
@@ -1997,7 +1998,7 @@ class RelatorioAtasView(RelatorioMixin, FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioPresencaSessaoView(RelatorioMixin, FilterView):
@@ -2240,7 +2241,7 @@ class RelatorioPresencaSessaoView(RelatorioMixin, FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioHistoricoTramitacaoView(RelatorioMixin, FilterView):
@@ -2301,7 +2302,7 @@ class RelatorioHistoricoTramitacaoView(RelatorioMixin, FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioDataFimPrazoTramitacaoView(RelatorioMixin, FilterView):
@@ -2368,7 +2369,7 @@ class RelatorioDataFimPrazoTramitacaoView(RelatorioMixin, FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioReuniaoView(RelatorioMixin, FilterView):
@@ -2406,7 +2407,7 @@ class RelatorioReuniaoView(RelatorioMixin, FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioAudienciaView(RelatorioMixin, FilterView):
@@ -2444,7 +2445,7 @@ class RelatorioAudienciaView(RelatorioMixin, FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioMateriasTramitacaoView(RelatorioMixin, FilterView):
@@ -2562,7 +2563,7 @@ class RelatorioMateriasTramitacaoView(RelatorioMixin, FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioMateriasPorAnoAutorTipoView(RelatorioMixin, FilterView):
@@ -2645,7 +2646,7 @@ class RelatorioMateriasPorAnoAutorTipoView(RelatorioMixin, FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioMateriasPorAutorView(RelatorioMixin, FilterView):
@@ -2719,7 +2720,7 @@ class RelatorioMateriaAnoAssuntoView(ListView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioNormasPublicadasMesView(RelatorioMixin, FilterView):
@@ -2763,7 +2764,7 @@ class RelatorioNormasPublicadasMesView(RelatorioMixin, FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioNormasVigenciaView(RelatorioMixin, FilterView):
@@ -2831,7 +2832,7 @@ class RelatorioNormasVigenciaView(RelatorioMixin, FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioHistoricoTramitacaoAdmView(RelatorioMixin, FilterView):
@@ -2885,7 +2886,7 @@ class RelatorioHistoricoTramitacaoAdmView(RelatorioMixin, FilterView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class RelatorioNormasPorAutorView(RelatorioMixin, FilterView):

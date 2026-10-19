@@ -31,6 +31,7 @@ from django_filters.views import FilterView
 from haystack.query import SearchQuerySet
 from haystack.views import SearchView
 from django_ratelimit.decorators import ratelimit
+from sapl.modern_components.rate_limit import rate_for_request
 
 from sapl import settings
 from sapl.base.forms import (AutorForm, TipoAutorForm, RecuperarSenhaForm,
@@ -48,7 +49,7 @@ from sapl.parlamentares.models import (
 from sapl.protocoloadm.models import (Anexado, Protocolo)
 from sapl.relatorios.views import (relatorio_estatisticas_acesso_normas)
 from sapl.sessao.models import (Bancada, SessaoPlenaria)
-from sapl.settings import EMAIL_SEND_USER, RATE_LIMITER_RATE
+from sapl.settings import EMAIL_SEND_USER
 from sapl.utils import (gerar_hash_arquivo, intervalos_tem_intersecao, mail_service_configured,
                         SEPARADOR_HASH_PROPOSICAO, show_results_filter_set, google_recaptcha_configured,
                         get_client_ip, sapn_is_enabled, is_weak_password, ratelimit_ip)
@@ -68,7 +69,7 @@ class IndexView(TemplateView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             method=ratelimit.UNSAFE,
                             block=True),
                   name='dispatch')
@@ -1400,7 +1401,7 @@ class SaplSearchView(SearchView):
 
 
 @method_decorator(ratelimit(key=ratelimit_ip,
-                            rate=RATE_LIMITER_RATE,
+                            rate=rate_for_request,
                             block=True),
                   name='dispatch')
 class PesquisarAuditLogView(PermissionRequiredMixin, FilterView):
