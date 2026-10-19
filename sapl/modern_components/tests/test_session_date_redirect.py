@@ -56,8 +56,8 @@ class SessionDateRedirectTests(SimpleTestCase):
                 serialize.assert_called_once_with(session)
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response['Content-Type'], 'application/json')
-                self.assertEqual(json.loads(response.content), data)
-                self.assertEqual(response.content, JSONRenderer().render(data))
+                self.assertEqual(json.loads(response.content), [data])
+                self.assertEqual(response.content, JSONRenderer().render([data]))
                 self.assertNotIn('Location', response)
 
     def test_json_uses_lookup_result_instead_of_fixed_id(self):
@@ -67,7 +67,7 @@ class SessionDateRedirectTests(SimpleTestCase):
             with patch.object(view, 'get_serializer',
                               return_value=SimpleNamespace(data={'codReuniao': 866})):
                 response = view.list(view.request)
-        self.assertEqual(json.loads(response.content), {'codReuniao': 866})
+        self.assertEqual(json.loads(response.content), [{'codReuniao': 866}])
 
     def test_missing_session_returns_empty_json_list(self):
         view = self.view(data_inicio='19/10/2026', get_all='true')
@@ -88,7 +88,7 @@ class SessionDateRedirectTests(SimpleTestCase):
         self.assertEqual(queryset.query.order_by,
                          ('data_inicio', 'hora_inicio', 'pk'))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(json.loads(response.content), {'codReuniao': 867})
+        self.assertEqual(json.loads(response.content), [{'codReuniao': 867}])
         self.assertNotIn('Location', response)
 
     def test_invalid_date_is_rejected_before_session_lookup(self):

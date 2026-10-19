@@ -46,6 +46,6 @@ class SessaoPlenariaViewSet(ListModelMixin,
             session = queryset.order_by('data_inicio', 'hora_inicio', 'pk').first()
             if session is not None:
                 return HttpResponse(
-                    JSONRenderer().render(self.get_serializer(session).data),
+                    JSONRenderer().render([self.get_serializer(session).data]),
                     content_type='application/json')
         return super().list(request, *args, **kwargs)
